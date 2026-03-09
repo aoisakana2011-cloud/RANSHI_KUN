@@ -75,12 +75,7 @@
                         <span>所要時間 (分)</span>
                     </div>
                     <div class="table-body" id="toilet-table-body">
-                        <!-- 初期状態では1行だけ表示 -->
-                        <div class="toilet-row">
-                            <span>1回目</span>
-                            <input type="time" value="09:00">
-                            <input type="number" min="1" max="60" value="3">
-                        </div>
+                        <!-- 初期状態では空 -->
                     </div>
                 </div>
             </div>
@@ -496,8 +491,9 @@ function updateToiletTable() {
     const count = parseInt(document.getElementById("predict-toilet-count").value) || 0;
     const body = document.getElementById("toilet-table-body");
     
+    // 0回の場合は空にする
     if (count === 0) {
-        body.innerHTML = '<div class="toilet-row"><span>1回目</span><input type="time" value="09:00"><input type="number" min="1" max="60" value="3"></div>';
+        body.innerHTML = "";
         return;
     }
     
