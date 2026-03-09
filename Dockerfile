@@ -41,4 +41,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
 EXPOSE 5000
 
 # Start application with Render-friendly settings
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5000} --workers ${WEB_CONCURRENCY:-4} --timeout 120 --access-logfile - --error-logfile - run:app"]
+CMD ["sh", "-c", "mkdir -p /tmp && gunicorn --bind 0.0.0.0:${PORT:-5000} --workers ${WEB_CONCURRENCY:-4} --timeout 120 --access-logfile - --error-logfile - --pid /tmp/gunicorn.pid run:app"]

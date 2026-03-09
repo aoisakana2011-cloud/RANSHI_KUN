@@ -94,21 +94,19 @@ class BotDetection:
 # Global bot detection instance
 bot_detection = BotDetection()
 
-def require_human():
+def require_human(f):
     """Decorator to ensure request is from human"""
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            ip_address = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
-            user_agent = request.headers.get('User-Agent', '')
-            
-            # Additional human verification checks
-            if not _is_likely_human(user_agent, ip_address):
-                abort(403, description="Access denied: Please use a standard web browser")
-            
-            return f(*args, **kwargs)
-        return decorated_function
-    return decorator
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        ip_address = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+        user_agent = request.headers.get('User-Agent', '')
+        
+        # Additional human verification checks
+        if not _is_likely_human(user_agent, ip_address):
+            abort(403, description="Access denied: Please use a standard web browser")
+        
+        return f(*args, **kwargs)
+    return decorated_function
 
 def _is_likely_human(user_agent, ip_address):
     """Determine if request is likely from a human"""
@@ -146,14 +144,10 @@ def limit_ip_registrations(max_registrations=1, time_window=3600):
     return decorator
 
 def verify_captcha():
-    """Simple CAPTCHA verification (can be enhanced with reCAPTCHA)"""
+    """Simple CAPTCHA verification"""
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            # For now, just check if request has typical human behavior
-            # In production, integrate with Google reCAPTCHA or similar
-            
-            # Check request timing (humans don't submit instantly)
             referer = request.headers.get('Referer', '')
             if not referer or 'ranshi-kun' not in referer:
                 abort(403, description="Invalid request source")
