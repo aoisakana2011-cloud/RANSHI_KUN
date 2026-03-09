@@ -17,17 +17,20 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Create non-root user first
+RUN useradd --create-home --shell /bin/bash app
+
+# Copy requirements and install as non-root user
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN chown app:app requirements.txt
+USER app
+RUN pip install --no-cache-dir --user -r requirements.txt
 
 # Copy application code
-COPY . .
+COPY --chown=app:app . .
 
-# Create non-root user for security
-RUN useradd --create-home --shell /bin/bash app && \
-    chown -R app:app /app
-USER app
+# Set up user environment
+ENV PATH="/home/app/.local/bin:$PATH"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
@@ -37,4 +40,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
 EXPOSE 5000
 
 # Start application with Render-friendly settings
-CMD ["gunicorn", "--bind", "0.0.0.0:${PORT:-5000}", "--workers", "${WEB_CONCURRENCY:-4}", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "run:app"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5000} --workers ${WEB_CONCURRENCY:-4} --timeout 120 --access-logfile - --error-logfile - run:app"]

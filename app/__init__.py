@@ -48,8 +48,10 @@ def create_app(config_object=None):
     # Security and monitoring
     from .security import init_security
     from .monitoring import init_monitoring
+    from .bot_protection import bot_detection
     init_security(app)
     init_monitoring(app)
+    bot_detection.init_app(app)
 
     return app
 

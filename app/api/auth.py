@@ -3,10 +3,14 @@ from flask import Blueprint, request, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from ..extensions import db
 from ..models import User
+from ..bot_protection import require_human, limit_ip_registrations, verify_captcha
 
 bp = Blueprint("auth", __name__)
 
 @bp.route("/register", methods=["POST"])
+@require_human
+@limit_ip_registrations(max_registrations=1, time_window=3600)
+@verify_captcha()
 def register():
     data = request.get_json() or {}
     username = data.get("username")
