@@ -153,9 +153,9 @@ class MigrationManager:
         
         for migration in pending:
             if self.apply_migration(migration):
-                print(f"✓ Migration {migration.version} applied successfully")
+                print(f"[OK] Migration {migration.version} applied successfully")
             else:
-                print(f"✗ Migration {migration.version} failed")
+                print(f"[FAIL] Migration {migration.version} failed")
                 break
     
     def rollback(self, target_version):
@@ -173,9 +173,9 @@ class MigrationManager:
                 # Remove migration record
                 db.engine.execute(f'DELETE FROM {self.migrations_table} WHERE version = ?', (migration.version,))
                 db.session.commit()
-                print(f"✓ Migration {migration.version} rolled back")
+                print(f"[OK] Migration {migration.version} rolled back")
             except Exception as e:
-                print(f"✗ Failed to rollback migration {migration.version}: {e}")
+                print(f"[FAIL] Failed to rollback migration {migration.version}: {e}")
                 break
 
 # Global migration manager instance

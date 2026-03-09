@@ -10,7 +10,7 @@ CLOUD_PROVIDER=${1:-"aws"}
 ENVIRONMENT=${2:-"production"}
 DOMAIN=${3:-"your-domain.com"}
 
-echo "🚀 Deploying RANSHI_KUN to $CLOUD_PROVIDER in $ENVIRONMENT environment"
+echo "[DEPLOY] Deploying RANSHI_KUN to $CLOUD_PROVIDER in $ENVIRONMENT environment"
 
 # Function to check if command exists
 command_exists() {
@@ -19,22 +19,22 @@ command_exists() {
 
 # Function to deploy to AWS
 deploy_aws() {
-    echo "📦 Deploying to AWS..."
+    echo "[DEPLOY] Deploying to AWS..."
     
     # Check AWS CLI
     if ! command_exists aws; then
-        echo "❌ AWS CLI not found. Please install it first."
+        echo "[FAIL] AWS CLI not found. Please install it first."
         exit 1
     fi
     
     # Check Docker
     if ! command_exists docker; then
-        echo "❌ Docker not found. Please install it first."
+        echo "[FAIL] Docker not found. Please install it first."
         exit 1
     fi
     
     # Build and push to ECR
-    echo "🏗️ Building Docker image..."
+    echo "[BUILD] Building Docker image..."
     docker build -t ranshi-kun:latest .
     
     # Get AWS account ID
@@ -42,7 +42,7 @@ deploy_aws() {
     ECR_REPO="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/ranshi-kun"
     
     # Login to ECR
-    echo "🔐 Logging into ECR..."
+    echo "[LOGIN] Logging into ECR..."
     aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
     
     # Tag and push
@@ -50,21 +50,21 @@ deploy_aws() {
     docker push $ECR_REPO:latest
     
     # Deploy with ECS or EB (simplified example)
-    echo "🚢 Deploying to ECS..."
+    echo "[DEPLOY] Deploying to ECS..."
     # This would typically use AWS CDK, Terraform, or ECS CLI
     # For demonstration, we're showing the manual steps
     
-    echo "✅ AWS deployment completed!"
-    echo "🌐 Your application should be available at: https://$DOMAIN"
+    echo "[OK] AWS deployment completed!"
+    echo "[INFO] Your application should be available at: https://$DOMAIN"
 }
 
 # Function to deploy to Google Cloud
 deploy_gcp() {
-    echo "📦 Deploying to Google Cloud..."
+    echo "[DEPLOY] Deploying to Google Cloud..."
     
     # Check gcloud CLI
     if ! command_exists gcloud; then
-        echo "❌ Google Cloud SDK not found. Please install it first."
+        echo "[FAIL] Google Cloud SDK not found. Please install it first."
         exit 1
     fi
     
@@ -72,15 +72,15 @@ deploy_gcp() {
     gcloud config set project $GCP_PROJECT_ID
     
     # Build and push to GCR
-    echo "🏗️ Building Docker image..."
+    echo "[BUILD] Building Docker image..."
     docker build -t gcr.io/$GCP_PROJECT_ID/ranshi-kun:latest .
     
     # Push to GCR
-    echo "🚢 Pushing to Google Container Registry..."
+    echo "[PUSH] Pushing to Google Container Registry..."
     docker push gcr.io/$GCP_PROJECT_ID/ranshi-kun:latest
     
     # Deploy to Cloud Run
-    echo "☁️ Deploying to Cloud Run..."
+    echo "[DEPLOY] Deploying to Cloud Run..."
     gcloud run deploy ranshi-kun \
         --image gcr.io/$GCP_PROJECT_ID/ranshi-kun:latest \
         --platform managed \
@@ -88,21 +88,21 @@ deploy_gcp() {
         --allow-unauthenticated \
         --set-env-vars "FLASK_ENV=production,DATABASE_URL=$DATABASE_URL"
     
-    echo "✅ Google Cloud deployment completed!"
+    echo "[OK] Google Cloud deployment completed!"
 }
 
 # Function to deploy to Azure
 deploy_azure() {
-    echo "📦 Deploying to Azure..."
+    echo "[DEPLOY] Deploying to Azure..."
     
     # Check Azure CLI
     if ! command_exists az; then
-        echo "❌ Azure CLI not found. Please install it first."
+        echo "[FAIL] Azure CLI not found. Please install it first."
         exit 1
     fi
     
     # Build and push to ACR
-    echo "🏗️ Building Docker image..."
+    echo "[BUILD] Building Docker image..."
     docker build -t ranshi-kun:latest .
     
     # Get ACR details
@@ -110,7 +110,7 @@ deploy_azure() {
     ACR_LOGIN_SERVER=$(az acr show --name $ACR_NAME --query loginServer -o tsv)
     
     # Login to ACR
-    echo "🔐 Logging into ACR..."
+    echo "[LOGIN] Logging into ACR..."
     az acr login --name $ACR_NAME
     
     # Tag and push
@@ -118,7 +118,7 @@ deploy_azure() {
     docker push $ACR_LOGIN_SERVER/ranshi-kun:latest
     
     # Deploy to Container Instances
-    echo "☁️ Deploying to Azure Container Instances..."
+    echo "[DEPLOY] Deploying to Azure Container Instances..."
     az container create \
         --resource-group ranshi-kun-rg \
         --name ranshi-kun \
@@ -127,16 +127,16 @@ deploy_azure() {
         --ports 80 \
         --environment-variables "FLASK_ENV=production" "DATABASE_URL=$DATABASE_URL"
     
-    echo "✅ Azure deployment completed!"
+    echo "[OK] Azure deployment completed!"
 }
 
 # Function to setup SSL certificates
 setup_ssl() {
-    echo "🔒 Setting up SSL certificates..."
+    echo "[SSL] Setting up SSL certificates..."
     
     # Install certbot if not present
     if ! command_exists certbot; then
-        echo "📦 Installing certbot..."
+        echo "[INSTALL] Installing certbot..."
         sudo apt-get update
         sudo apt-get install -y certbot python3-certbot-nginx
     fi
@@ -145,15 +145,15 @@ setup_ssl() {
     sudo certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN
     
     # Setup auto-renewal
-    echo "⏰ Setting up SSL auto-renewal..."
+    echo "[CRON] Setting up SSL auto-renewal..."
     (crontab -l 2>/dev/null; echo "0 12 * * * /usr/bin/certbot renew --quiet") | crontab -
     
-    echo "✅ SSL setup completed!"
+    echo "[OK] SSL setup completed!"
 }
 
 # Function to setup monitoring
 setup_monitoring() {
-    echo "📊 Setting up monitoring..."
+    echo "[MONITOR] Setting up monitoring..."
     
     # Create monitoring directory
     mkdir -p monitoring
@@ -169,7 +169,7 @@ scrape_configs:
       - targets: ['web:5000']
 EOF
     
-    echo "✅ Monitoring setup completed!"
+    echo "[OK] Monitoring setup completed!"
 }
 
 # Main deployment logic
@@ -184,7 +184,7 @@ case $CLOUD_PROVIDER in
         deploy_azure
         ;;
     *)
-        echo "❌ Unsupported cloud provider: $CLOUD_PROVIDER"
+        echo "[FAIL] Unsupported cloud provider: $CLOUD_PROVIDER"
         echo "Supported providers: aws, gcp, azure"
         exit 1
         ;;
@@ -196,8 +196,8 @@ if [ "$ENVIRONMENT" = "production" ]; then
     setup_monitoring
 fi
 
-echo "🎉 Deployment completed successfully!"
-echo "📋 Next steps:"
+echo "[OK] Deployment completed successfully!"
+echo "[INFO] Next steps:"
 echo "   1. Update your DNS to point to the deployment"
 echo "   2. Test the application at https://$DOMAIN"
 echo "   3. Setup backup and monitoring alerts"

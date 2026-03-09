@@ -602,6 +602,47 @@
     color: #991b1b;
 }
 
+.settings-form {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.setting-group {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+}
+
+.setting-group h4 {
+    margin: 0 0 0.75rem 0;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.setting-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.813rem;
+    line-height: 1.4;
+}
+
+.setting-group input[type="checkbox"] {
+    margin-right: 0.5rem;
+}
+
+.setting-group input[type="number"],
+.setting-group select {
+    margin-left: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.813rem;
+}
+
 @media (max-width: 768px) {
     .admin-dashboard {
         padding: 1rem;
@@ -998,6 +1039,120 @@ async function deleteComment(commentId) {
             console.error('削除エラー:', error);
             alert('削除に失敗しました');
         }
+    }
+}
+
+async function showSettings() {
+    try {
+        const response = await fetch('/api/v1/admin/settings');
+        const settings = await response.json();
+        
+        const settingsHtml = `
+            <h3>システム設定</h3>
+            <div class="settings-form">
+                <div class="setting-group">
+                    <h4>予測アルゴリズム</h4>
+                    <label>
+                        <input type="checkbox" id="ml_models_enabled" ${settings.ml_models_enabled ? 'checked' : ''}>
+                        機械学習モデルを有効化
+                    </label>
+                    <label>
+                        <input type="checkbox" id="auto_optimization" ${settings.auto_optimization ? 'checked' : ''}>
+                        自動パラメータ最適化
+                    </label>
+                    <label>
+                        <input type="checkbox" id="provisional_periods" ${settings.provisional_periods ? 'checked' : ''}>
+                        暫定期間学習
+                    </label>
+                </div>
+                
+                <div class="setting-group">
+                    <h4>機能設定</h4>
+                    <label>
+                        <input type="checkbox" id="feature_engineering" ${settings.feature_engineering ? 'checked' : ''}>
+                        特徴量エンジニアリング
+                    </label>
+                    <label>
+                        <input type="checkbox" id="meds_categories" ${settings.meds_categories ? 'checked' : ''}>
+                        薬剤カテゴリ分析
+                    </label>
+                    <label>
+                        <input type="checkbox" id="toilet_time_analysis" ${settings.toilet_time_analysis ? 'checked' : ''}>
+                        トイレ時間分析
+                    </label>
+                </div>
+                
+                <div class="setting-group">
+                    <h4>学習設定</h4>
+                    <label>
+                        モデル学習閾値:
+                        <input type="number" id="model_training_threshold" value="${settings.model_training_threshold}" min="5" max="50">
+                    </label>
+                    <label>
+                        信頼度閾値:
+                        <input type="number" id="confidence_threshold" value="${settings.confidence_threshold}" min="0.1" max="1.0" step="0.1">
+                    </label>
+                    <label>
+                        予測範囲（日）:
+                        <input type="number" id="max_prediction_range" value="${settings.max_prediction_range}" min="30" max="90">
+                    </label>
+                </div>
+                
+                <div class="setting-group">
+                    <h4>データ管理</h4>
+                    <label>
+                        バックアップ頻度:
+                        <select id="backup_frequency">
+                            <option value="daily" ${settings.backup_frequency === 'daily' ? 'selected' : ''}>毎日</option>
+                            <option value="weekly" ${settings.backup_frequency === 'weekly' ? 'selected' : ''}>毎週</option>
+                            <option value="monthly" ${settings.backup_frequency === 'monthly' ? 'selected' : ''}>毎月</option>
+                        </select>
+                    </label>
+                    <label>
+                        データ保持期間（日）:
+                        <input type="number" id="data_retention_days" value="${settings.data_retention_days}" min="30" max="1000">
+                    </label>
+                </div>
+            </div>
+        `;
+        
+        showModal('システム設定', settingsHtml, false, false, async () => {
+            const newSettings = {
+                prediction_algorithm: "advanced",
+                ml_models_enabled: document.getElementById('ml_models_enabled').checked,
+                auto_optimization: document.getElementById('auto_optimization').checked,
+                provisional_periods: document.getElementById('provisional_periods').checked,
+                feature_engineering: document.getElementById('feature_engineering').checked,
+                meds_categories: document.getElementById('meds_categories').checked,
+                toilet_time_analysis: document.getElementById('toilet_time_analysis').checked,
+                learning_rate_adaptive: true,
+                model_training_threshold: parseInt(document.getElementById('model_training_threshold').value),
+                backup_frequency: document.getElementById('backup_frequency').value,
+                data_retention_days: parseInt(document.getElementById('data_retention_days').value),
+                max_prediction_range: parseInt(document.getElementById('max_prediction_range').value),
+                confidence_threshold: parseFloat(document.getElementById('confidence_threshold').value)
+            };
+            
+            try {
+                const response = await fetch('/api/v1/admin/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newSettings)
+                });
+                
+                if (response.ok) {
+                    alert('設定を保存しました');
+                } else {
+                    alert('設定の保存に失敗しました');
+                }
+            } catch (error) {
+                console.error('設定保存エラー:', error);
+                alert('設定の保存に失敗しました');
+            }
+        });
+    } catch (error) {
+        console.error('設定読み込みエラー:', error);
+        alert('設定の読み込みに失敗しました');
     }
 }
 

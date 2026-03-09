@@ -6,6 +6,7 @@ from datetime import datetime, date
 import csv
 import io
 import json
+import os
 
 bp = Blueprint("admin_extended", __name__)
 
@@ -304,9 +305,39 @@ def update_comment(comment_id):
     # TODO: Implement actual comment update
     return jsonify({"message": "comment updated"})
 
-@bp.route("/comments/<int:comment_id>", methods=["DELETE"])
+@bp.route("/settings", methods=["GET", "POST"])
 @login_required
 @admin_required
-def delete_comment(comment_id):
-    # TODO: Implement actual comment deletion
-    return jsonify({"message": "comment deleted"})
+def get_settings():
+    if request.method == "GET":
+        # 現在の設定を返す
+        settings = {
+            "prediction_algorithm": "advanced",
+            "ml_models_enabled": True,
+            "auto_optimization": True,
+            "provisional_periods": True,
+            "feature_engineering": True,
+            "meds_categories": True,
+            "toilet_time_analysis": True,
+            "learning_rate_adaptive": True,
+            "model_training_threshold": 10,
+            "backup_frequency": "daily",
+            "data_retention_days": 365,
+            "max_prediction_range": 60,
+            "confidence_threshold": 0.6
+        }
+        return jsonify(settings)
+    
+    elif request.method == "POST":
+        # 設定を更新
+        data = request.get_json() or {}
+        
+        # 設定ファイルに保存（実際の実装ではDBや設定ファイルを使用）
+        settings_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'admin_settings.json')
+        try:
+            os.makedirs(os.path.dirname(settings_path), exist_ok=True)
+            with open(settings_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            return jsonify({"message": "設定を更新しました"})
+        except Exception as e:
+            return jsonify({"error": f"設定の更新に失敗しました: {str(e)}"}), 500

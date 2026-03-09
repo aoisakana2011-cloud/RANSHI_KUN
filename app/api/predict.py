@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
-
-from ..services.prediction import add_entry_and_predict, add_entry_only
+from flask_login import login_required, current_user
+from ..services.prediction_advanced import add_entry_and_predict, add_entry_only
 
 bp = Blueprint("predict", __name__)
 
