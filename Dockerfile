@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y \
 # Create non-root user first
 RUN useradd --create-home --shell /bin/bash app
 
-# Copy requirements and install as non-root user
+# Install Python dependencies
 COPY requirements.txt .
 RUN chown app:app requirements.txt
 USER app
@@ -31,6 +31,7 @@ COPY --chown=app:app . .
 
 # Set up user environment
 ENV PATH="/home/app/.local/bin:$PATH"
+ENV PYTHONPATH="/app:$PYTHONPATH"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
