@@ -15,7 +15,7 @@ HIGH_THRESHOLD = 0.84
 MIN_STRONG_UPDATE_DAYS = 60
 SCORE_PERIOD_DAYS = 5
 
-GYM_WEIGHT_INIT = -4.0
+GYM_WEIGHT_INIT = 4.0
 ABSENT_WEIGHT_INIT = 2.0
 PAIN_WEIGHT_INIT = 2.2
 HEADACHE_WEIGHT_INIT = 1.5
@@ -24,7 +24,7 @@ FATIGUE_WEIGHT_INIT = 1.8
 BLOATING_WEIGHT_INIT = 1.6
 BREAST_TENDERNESS_WEIGHT_INIT = 1.4
 PROB_CAP_MAX = 0.85
-PROB_CAP_MIN = 0.20
+PROB_CAP_MIN = 0.0
 COUGH_MAX_MULTIPLIER_INIT = 1.1
 COUGH_MIN_MULTIPLIER_INIT = 0.3
 GROUP1_TARGET_PROB_INIT = 0.95
@@ -41,6 +41,7 @@ def _default_weights() -> Dict[str, float]:
         "pain": PAIN_WEIGHT_INIT,
         "headache": HEADACHE_WEIGHT_INIT,
         "tone": TONE_WEIGHT_INIT,
+        "toilet_duration": 1.2,
     }
 
 
@@ -316,7 +317,7 @@ def _calculate_medical_probability(raw_score: float, weights_sum: float, params:
     base_prob = _enhanced_sigmoid(raw_score - params["score_shift"], steepness=0.6)
     
     gym_bonus = 0.0
-    if weights_sum < 0:
+    if weights_sum > 0:
         gym_bonus = min(0.15, abs(weights_sum) * 0.05)
     
     pain_bonus = 0.0
@@ -420,6 +421,35 @@ def _compute_and_save_entry(uid: str, payload: Dict[str, Any]) -> tuple:
 
     cough_multiplier = p["cough_max_multiplier"] - (p["cough_max_multiplier"] - p["cough_min_multiplier"]) * (cough / 4.0)
     raw_score *= cough_multiplier
+
+    toilet_times_payload = payload.get("toilet_times") or []
+    toilet_count = len(toilet_times_payload)
+    
+    if toilet_count > 0:
+        avg_duration = sum(t.get("duration_min", 0) for t in toilet_times_payload) / toilet_count
+        avg_duration = max(0, min(avg_duration, 30))
+        
+        history = udata.get("history", [])
+        if history:
+            all_durations = []
+            for entry in history[-20:]:
+                for t in entry.get("toilet_times", []):
+                    if t.get("duration_min"):
+                        all_durations.append(t["duration_min"])
+            
+            if all_durations:
+                historical_avg = sum(all_durations) / len(all_durations)
+                target_duration = historical_avg + 5.0
+            else:
+                target_duration = 5.0
+        else:
+            target_duration = 5.0
+        
+        duration_score = 1.0 - abs(avg_duration - target_duration) / 15.0
+        duration_score = max(0, duration_score)
+        
+        toilet_score = (toilet_count / 10.0) * 0.6 + duration_score * 0.4
+        raw_score += toilet_score * 2.0
 
     meds_submission = payload.get("meds") or []
     if not isinstance(meds_submission, list):

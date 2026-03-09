@@ -26,8 +26,8 @@
                 <input type="date" id="predict-date" required>
             </div>
             <div class="form-row">
-                <label>体育 <span class="criteria">0:見学 1:ほぼ見学 2:運動減少 3:普通</span></label>
-                <input type="number" id="predict-gym" min="0" max="3" value="0" title="0:欠席 1:ほぼ欠席 2:運動減少 3:普通">
+                <label>体育 <span class="criteria">0:普通 1:運動減少 2:ほぼ見学 3:見学</span></label>
+                <input type="number" id="predict-gym" min="0" max="3" value="0" title="0:普通 1:運動減少 2:ほぼ見学 3:見学">
             </div>
             <div class="form-row">
                 <label>出欠 <span class="criteria">0:通常 1:早退/遅刻 2:欠席</span></label>
@@ -59,8 +59,8 @@
             </div>
         </div>
         <div class="form-buttons">
-            <button type="submit" name="action" value="predict">予測する</button>
-            <button type="button" id="register-btn">登録（履歴のみ・学習用）</button>
+            <button type="button" id="register-btn">登録</button>
+            <button type="button" id="predict-btn">予測</button>
         </div>
     </form>
     <div id="predict-result" class="predict-result"></div>
@@ -283,8 +283,8 @@ document.getElementById("add-individual-form").addEventListener("submit", async 
     }
 });
 
-document.getElementById("predict-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
+
+document.getElementById("predict-btn").addEventListener("click", async () => {
     const uid = document.getElementById("predict-uid").value.trim();
     if (!uid) {
         alert("UIDを入力してください");
@@ -387,7 +387,7 @@ document.getElementById("register-btn").addEventListener("click", async () => {
         return;
     }
     const data = await res.json();
-    out.innerHTML = "<strong>" + data.message + "</strong> " + (data.entry && data.entry.date ? data.entry.date + " を記録しました。" : "");
+    out.innerHTML = "<strong>" + data.message + "</strong> " + (data.entry && data.entry.date ? data.entry.date + " を登録しました。" : "");
     loadHistory(uid);
 });
 
