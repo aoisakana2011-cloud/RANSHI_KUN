@@ -5,7 +5,6 @@ import re
 import time
 from flask import request, jsonify, abort, current_app
 from functools import wraps
-import hashlib
 from collections import defaultdict
 
 class BotDetection:

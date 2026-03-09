@@ -13,8 +13,8 @@
 </section>
 
 <section class="section input-section">
-    <h3>今日の体調を入力して予測</h3>
-    <p class="form-criteria">※ 入力した「日付」の日の体調を記録し、その日の確率を出します。グラフは「今日」から60日分の予測です。</p>
+    <h3>今日の行動を記録して予測</h3>
+    <p class="form-criteria">※ 入力した「日付」の日の行動を記録し、その日の確率を出します。グラフは「今日」から60日分の予測です。</p>
     <div class="input-layout">
         <div class="left-panel">
             <form id="predict-form" class="predict-form">
@@ -68,18 +68,20 @@
         <div class="right-panel">
             <div class="toilet-section">
                 <h4>トイレ詳細</h4>
-                <div class="toilet-table-container" id="toilet-table-container" style="display:none;">
-                    <table class="toilet-table">
-                        <thead>
-                            <tr>
-                                <th>回数</th>
-                                <th>時刻</th>
-                                <th>所要時間 (分)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="toilet-table-body">
-                        </tbody>
-                    </table>
+                <div class="toilet-table-container">
+                    <div class="table-header">
+                        <span>回数</span>
+                        <span>時刻</span>
+                        <span>所要時間 (分)</span>
+                    </div>
+                    <div class="table-body" id="toilet-table-body">
+                        <!-- 初期状態では1行だけ表示 -->
+                        <div class="toilet-row">
+                            <span>1回目</span>
+                            <input type="time" value="09:00">
+                            <input type="number" min="1" max="60" value="3">
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -210,14 +212,18 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
+    height: 100%;
 }
 
 .toilet-section, .meds-section {
+    flex: 1;
     border: 1px solid var(--border-color);
     border-radius: 6px;
     padding: 1rem;
     background: var(--bg-secondary);
+    display: flex;
+    flex-direction: column;
 }
 
 .toilet-section h4, .meds-section h4 {
@@ -228,11 +234,14 @@
 }
 
 .toilet-table-container {
-    max-height: 300px;
-    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
     border: 1px solid var(--border-color);
     border-radius: 4px;
     background: var(--bg-primary);
+    max-height: 250px;
+    overflow-y: auto;
 }
 
 .table-header {
@@ -485,15 +494,13 @@ async function loadMedsData() {
 // トイレ表を更新
 function updateToiletTable() {
     const count = parseInt(document.getElementById("predict-toilet-count").value) || 0;
-    const container = document.getElementById("toilet-table-container");
     const body = document.getElementById("toilet-table-body");
     
     if (count === 0) {
-        container.style.display = "none";
+        body.innerHTML = '<div class="toilet-row"><span>1回目</span><input type="time" value="09:00"><input type="number" min="1" max="60" value="3"></div>';
         return;
     }
     
-    container.style.display = "block";
     body.innerHTML = "";
     
     const now = new Date();
