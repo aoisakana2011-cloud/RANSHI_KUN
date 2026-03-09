@@ -139,6 +139,104 @@ if group4_meds_taken:
                 <div class="algorithm-section">
                     <h4>4. 機械学習モデル</h4>
                     <pre class="code-block">特徴量抽出:
+
+制作者が忘れる可能性があるため、一応記述しておきます。制作始めるときの設計のメモの転用です。
+RANSHI_KUN_Flask/
+├── .env
+├── .env.example
+├── .env.production
+├── .env.render
+├── DEPLOYMENT.md
+├── Dockerfile
+├── Dockerfile.render
+├── Procfile
+├── README.md
+├── RENDER_DEPLOYMENT.md
+├── WINDOWS_DEPLOYMENT.md
+├── celeryconfig.py
+├── config.py
+├── config_render.py
+├── deploy-render.sh
+├── deploy.sh
+├── docker-compose.production.yml
+├── docker-compose.yml
+├── gunicorn.conf.py
+├── manual-deploy.sh
+├── render.yaml
+├── requirements.txt
+├── run.py
+│
+├── app/
+│   ├── __init__.py
+│   ├── bot_protection.py
+│   ├── config.py
+│   ├── extensions.py
+│   ├── migrations.py
+│   ├── models.py
+│   ├── monitoring.py
+│   ├── security.py
+│   ├── tasks.py
+│   ├── utils.py
+│   │
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── admin_extended.py
+│   │   ├── auth.py
+│   │   ├── history.py
+│   │   ├── individuals.py
+│   │   └── predict.py
+│   │
+│   ├── data/
+│   │   └── meds_list.json
+│   │
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── aggregation.py
+│   │   ├── features.py
+│   │   ├── io.py
+│   │   ├── meds.py
+│   │   ├── ml.py
+│   │   ├── ml_advanced.py
+│   │   ├── ml_models.py
+│   │   ├── parsing.py
+│   │   ├── prediction.py
+│   │   ├── prediction_advanced.py
+│   │   └── provisional.py
+│   │
+│   └── web/
+│       ├── __init__.py
+│       ├── views.py
+│       │
+│       ├── static/
+│       │   └── static.css
+│       │
+│       └── templates/
+│           ├── admin.html
+│           ├── admin_old.html
+│           ├── dashboard.html
+│           ├── layout.html
+│           └── login.html
+│
+├── data/
+├── docker/
+│   └── nginx.conf
+├── individual_data/
+├── migrations/
+├── models/
+├── nginx/
+│   └── default.conf
+├── scripts/
+│   └── backup.sh
+└── tests/
+    ├── __init__.py
+    ├── test_api.py
+    ├── test_models.py
+    ├── test_services.py
+    ├── test_utils.py
+    ├── conftest.py
+    └── fixtures.py
+
 - トイレ回数、平均時間、持続時間
 - 痛み、頭痛、緊張度
 - 体育、出欠、咳の頻度
@@ -149,11 +247,89 @@ if group4_meds_taken:
 - RandomForest (バックアップ)
 - Self-Training Classifier (半教師あり学習)
 
-学習:
-- 擬似ラベル生成 (HMM + 変化点検出)
-- 適応的学習率
-- K分割交差検証
-- ハイパーパラメータ最適化 (scipy.optimize)</pre>
+学習手法と技法詳細:
+
+【擬似ラベル生成技法】
+1. HMM (Hidden Markov Model) アプローチ:
+   - 状態遷移確率を学習: P(state_t | state_{t-1})
+   - 観測確率モデル: P(observation | state)
+   - Viterbiアルゴリズムで最適状態系列を推定
+   - 前向き・後向きアルゴリズムで事後確率計算
+
+2. 変化点検出技法:
+   - CUSUM (Cumulative Sum) 法で統計的変化点を検出
+   - ベイズ変化点検出で事前確率を考慮
+   - 滑らかな変化を検出するための移動平均フィルタ
+   - 異常値検出と除外ロジック
+
+3. ラベル信頼度計算:
+   - エントロピーに基づく不確実性評価
+   - コンセンサスアンサンブルで複数モデルの一致度を評価
+   - 信頼度閾値: 0.85以上を高信頼度ラベルとして採用
+
+【適応的学習率技法】
+1. 動的学習率調整:
+   - Adamオプティマイザのbeta_1, beta_2を最適化
+   - 学習率スケジューリング: cosine_annealing_with_restarts
+   - ウォームアップ期間: 最初の100エポックで学習率を線形増加
+
+2. 個人別適応学習:
+   - ユーザーごとの学習履歴を追跡
+   - 過去の予測精度に基づき学習率を調整
+   - 新規ユーザーには高い学習率、安定ユーザーには低い学習率
+
+3. 忘却率の実装:
+   - 時間経過に伴う重み減衰: exp(-λ * Δt)
+   - 短期記憶と長期記憶の分離
+   - 重要度に基づく選択的忘却
+
+【K分割交差検証技法】
+1. Stratified K-Fold実装:
+   - 各フォールドでクラス比率を維持
+   - 時系列データに対するTimeSeriesSplit
+   - グループ化されたデータのGroupKFold
+
+2. 入れ子交差検証:
+   - 外側ループでモデル評価
+   - 内側ループでハイパーパラメータ最適化
+   - 過学習を防ぐための厳密な分離
+
+3. ブートストラップ法:
+   - リサンプリングによる信頼区間推定
+   - バギングによるアンサンブル学習
+   - Out-of-Bagサンプルによる汎化誤差評価
+
+【ハイパーパラメータ最適化技法】
+1. scipy.optimize活用:
+   - BFGS (Broyden-Fletcher-Goldfarb-Shanno) アルゴリズム
+   - 制約付き最適化: L-BFGS-B
+   - 数値微分による勾配計算
+
+2. グリッドサーチとランダムサーチ:
+   - 対数スケールでのパラメータ探索
+   - ベイズ最適化による効率的な探索
+   - 早期終了による計算コスト削減
+
+3. 自動ハイパーパラメータチューニング:
+   - Optunaフレームワークの統合
+   - TPE (Tree-structured Parzen Estimator) アルゴリズム
+   - 多目的最適化による精度と計算速度のトレードオフ
+
+【モデル融合技法】
+1. アンサンブル学習:
+   - Voting Classifierによる多数決
+   - Stackingによる多段階学習
+   - Blendingによるホールドアウト検証
+
+2. 重み付き融合:
+   - 個別モデルの性能に基づく動的重み付け
+   - メタ学習による最適重みの学習
+   - 不確実性に基づく適応的融合
+
+3. 時系列特化技法:
+   - ウィンドウベースの特徴抽出
+   - ラグ特徴の自動生成
+   - 季節性パターンの検出と活用</pre>
                 </div>
 
                 <div class="algorithm-section">
