@@ -1,0 +1,383 @@
+{% extends "layout.html" %}
+{% block content %}
+<h1 class="dash-title">管理者ページ</h1>
+
+<section class="section">
+    <h3>システム管理</h3>
+    <div class="admin-controls">
+        <button id="view-all-data">全データ閲覧</button>
+        <button id="view-users">ユーザー管理</button>
+        <button id="delete-all-data">全データ削除</button>
+    </div>
+</section>
+
+<section class="section">
+    <h3>データ閲覧・操作</h3>
+    <div id="data-panel">
+        <p>操作を選択してください</p>
+    </div>
+</section>
+
+<style>
+.admin-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+.admin-controls button {
+    padding: 0.75rem 1.5rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+.admin-controls button:hover {
+    background: var(--primary-hover);
+}
+.admin-controls button.danger {
+    background: #dc3545;
+}
+.admin-controls button.danger:hover {
+    background: #c82333;
+}
+#data-panel {
+    background: var(--bg-secondary);
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    min-height: 300px;
+}
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+.data-table th, .data-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+.data-table th {
+    background: var(--bg-primary);
+    font-weight: bold;
+}
+.data-table tr:hover {
+    background: var(--bg-hover);
+}
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+.btn-small {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+.btn-edit { background: #ffc107; color: #212529; }
+.btn-delete { background: #dc3545; color: white; }
+.btn-disable { background: #6c757d; color: white; }
+.btn-enable { background: #28a745; color: white; }
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+.modal-content {
+    background-color: var(--bg-primary);
+    margin: 15% auto;
+    padding: 2rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    width: 80%;
+    max-width: 500px;
+}
+.modal-buttons {
+    margin-top: 1rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+.form-group {
+    margin-bottom: 1rem;
+}
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+.form-group input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+</style>
+
+<!-- 確認モーダル -->
+<div id="confirmModal" class="modal">
+    <div class="modal-content">
+        <h3 id="modalTitle">確認</h3>
+        <p id="modalMessage">本当に実行しますか？</p>
+        <div class="form-group" id="passwordGroup" style="display:none;">
+            <label>管理者パスワード:</label>
+            <input type="password" id="confirmPassword">
+        </div>
+        <div class="modal-buttons">
+            <button id="modalCancel">キャンセル</button>
+            <button id="modalConfirm" class="danger">実行</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentAction = null;
+
+// モーダル操作
+function showModal(title, message, requirePassword = false, callback) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalMessage').textContent = message;
+    document.getElementById('passwordGroup').style.display = requirePassword ? 'block' : 'none';
+    document.getElementById('confirmModal').style.display = 'block';
+    currentAction = callback;
+}
+
+function hideModal() {
+    document.getElementById('confirmModal').style.display = 'none';
+    document.getElementById('confirmPassword').value = '';
+    currentAction = null;
+}
+
+document.getElementById('modalCancel').addEventListener('click', hideModal);
+
+document.getElementById('modalConfirm').addEventListener('click', () => {
+    if (currentAction) {
+        const password = document.getElementById('confirmPassword').value;
+        currentAction(password);
+    }
+});
+
+// 全データ閲覧
+document.getElementById('view-all-data').addEventListener('click', async () => {
+    try {
+        const response = await fetch('/api/v1/admin/all-data');
+        const data = await response.json();
+        displayAllData(data);
+    } catch (error) {
+        console.error('データ取得に失敗:', error);
+        document.getElementById('data-panel').innerHTML = '<p>データ取得に失敗しました</p>';
+    }
+});
+
+// ユーザー管理
+document.getElementById('view-users').addEventListener('click', async () => {
+    try {
+        const response = await fetch('/api/v1/admin/users');
+        const data = await response.json();
+        displayUsers(data);
+    } catch (error) {
+        console.error('ユーザー取得に失敗:', error);
+        document.getElementById('data-panel').innerHTML = '<p>ユーザー取得に失敗しました</p>';
+    }
+});
+
+// 全データ削除
+document.getElementById('delete-all-data').addEventListener('click', () => {
+    showModal(
+        '全データ削除',
+        '管理者以外の全データを削除します。本当に実行しますか？',
+        true,
+        async (password) => {
+            try {
+                const response = await fetch('/api/v1/admin/delete-all-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                
+                if (response.ok) {
+                    alert('全データを削除しました');
+                    document.getElementById('data-panel').innerHTML = '<p>操作を選択してください</p>';
+                } else {
+                    const error = await response.json();
+                    alert('削除に失敗しました: ' + (error.error || '不明なエラー'));
+                }
+            } catch (error) {
+                console.error('削除に失敗:', error);
+                alert('削除に失敗しました');
+            }
+            hideModal();
+        }
+    );
+});
+
+// データ表示関数
+function displayAllData(data) {
+    const panel = document.getElementById('data-panel');
+    let html = '<h4>全データ</h4>';
+    
+    if (data.users && data.users.length > 0) {
+        html += '<h5>ユーザー</h5>';
+        html += '<table class="data-table">';
+        html += '<tr><th>ID</th><th>ユーザー名</th><th>個体数</th><th>アクション</th></tr>';
+        data.users.forEach(user => {
+            html += `<tr>
+                <td>${user.id}</td>
+                <td>${user.username}</td>
+                <td>${user.individual_count}</td>
+                <td class="action-buttons">
+                    <button class="btn-small btn-delete" onclick="deleteUser(${user.id})">削除</button>
+                    <button class="btn-small ${user.is_active ? 'btn-disable' : 'btn-enable'}" onclick="toggleUser(${user.id}, ${!user.is_active})">
+                        ${user.is_active ? '無効化' : '有効化'}
+                    </button>
+                </td>
+            </tr>`;
+        });
+        html += '</table>';
+    }
+    
+    if (data.individuals && data.individuals.length > 0) {
+        html += '<h5>個体</h5>';
+        html += '<table class="data-table">';
+        html += '<tr><th>ID</th><th>UID</th><th>所有者</th><th>記録数</th><th>アクション</th></tr>';
+        data.individuals.forEach(ind => {
+            html += `<tr>
+                <td>${ind.id}</td>
+                <td>${ind.uid}</td>
+                <td>${ind.owner_username}</td>
+                <td>${ind.input_count}</td>
+                <td class="action-buttons">
+                    <button class="btn-small btn-delete" onclick="deleteIndividual(${ind.id})">削除</button>
+                </td>
+            </tr>`;
+        });
+        html += '</table>';
+    }
+    
+    panel.innerHTML = html;
+}
+
+function displayUsers(data) {
+    const panel = document.getElementById('data-panel');
+    let html = '<h4>ユーザー管理</h4>';
+    
+    if (data.users && data.users.length > 0) {
+        html += '<table class="data-table">';
+        html += '<tr><th>ID</th><th>ユーザー名</th><th>メール</th><th>状態</th><th>個体数</th><th>アクション</th></tr>';
+        data.users.forEach(user => {
+            html += `<tr>
+                <td>${user.id}</td>
+                <td>${user.username}</td>
+                <td>${user.email || 'N/A'}</td>
+                <td>${user.is_active ? '有効' : '無効'}</td>
+                <td>${user.individual_count}</td>
+                <td class="action-buttons">
+                    <button class="btn-small ${user.is_active ? 'btn-disable' : 'btn-enable'}" onclick="toggleUser(${user.id}, ${!user.is_active})">
+                        ${user.is_active ? '無効化' : '有効化'}
+                    </button>
+                    <button class="btn-small btn-delete" onclick="deleteUser(${user.id})">削除</button>
+                </td>
+            </tr>`;
+        });
+        html += '</table>';
+    } else {
+        html += '<p>ユーザーがいません</p>';
+    }
+    
+    panel.innerHTML = html;
+}
+
+// アクション関数
+async function deleteUser(userId) {
+    showModal(
+        'ユーザー削除',
+        'このユーザーと関連データを削除します。本当に実行しますか？',
+        false,
+        async () => {
+            try {
+                const response = await fetch(`/api/v1/admin/users/${userId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    alert('ユーザーを削除しました');
+                    document.getElementById('view-users').click();
+                } else {
+                    alert('削除に失敗しました');
+                }
+            } catch (error) {
+                console.error('削除に失敗:', error);
+                alert('削除に失敗しました');
+            }
+            hideModal();
+        }
+    );
+}
+
+async function deleteIndividual(indId) {
+    showModal(
+        '個体削除',
+        'この個体と関連データを削除します。本当に実行しますか？',
+        false,
+        async () => {
+            try {
+                const response = await fetch(`/api/v1/admin/individuals/${indId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    alert('個体を削除しました');
+                    document.getElementById('view-all-data').click();
+                } else {
+                    alert('削除に失敗しました');
+                }
+            } catch (error) {
+                console.error('削除に失敗:', error);
+                alert('削除に失敗しました');
+            }
+            hideModal();
+        }
+    );
+}
+
+async function toggleUser(userId, enable) {
+    const action = enable ? '有効化' : '無効化';
+    showModal(
+        `ユーザー${action}`,
+        `ユーザーを${action}します。本当に実行しますか？`,
+        false,
+        async () => {
+            try {
+                const response = await fetch(`/api/v1/admin/users/${userId}/toggle`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_active: enable })
+                });
+                
+                if (response.ok) {
+                    alert(`ユーザーを${action}しました`);
+                    document.getElementById('view-users').click();
+                } else {
+                    alert(`${action}に失敗しました`);
+                }
+            } catch (error) {
+                console.error(`${action}に失敗:`, error);
+                alert(`${action}に失敗しました`);
+            }
+            hideModal();
+        }
+    );
+}
+</script>
+{% endblock %}

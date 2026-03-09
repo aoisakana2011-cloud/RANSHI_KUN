@@ -1,0 +1,24 @@
+[
+  {
+    "name": "アセトアミノフェン",
+    "aliases": [
+      "解熱鎮痛剤"
+    ],
+    "score": 1.0,
+    "source": "seed"
+  },
+  {
+    "name": "イブプロフェン",
+    "aliases": [
+      "NSAID"
+    ],
+    "score": 0.9,
+    "source": "seed"
+  },
+  {
+    "name": "ロキソプロフェン",
+    "aliases": [],
+    "score": 0.8,
+    "source": "seed"
+  }
+]

@@ -1,0 +1,145 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="auth-page">
+    <div class="auth-hero">
+        <h1 class="auth-title">RANSHI_KUN</h1>
+        <p class="auth-tagline">（ミサトクション共同開発）</p>
+        <p class="auth-desc">月経周期予測</p>
+    </div>
+
+    <div class="auth-card">
+        <div class="auth-tabs">
+            <button type="button" class="auth-tab active" data-tab="login">ログイン</button>
+            <button type="button" class="auth-tab" data-tab="register">新規登録</button>
+        </div>
+
+        <div id="login-panel" class="auth-panel active">
+            <form id="login-form" class="auth-form">
+                <label class="auth-label">USER_ID</label>
+                <input type="text" id="username" required class="auth-input" placeholder="ユーザーID" autocomplete="username">
+
+                <label class="auth-label">PASSWORD</label>
+                <input type="password" id="password" required class="auth-input" placeholder="パスワード" autocomplete="current-password">
+
+                <button type="submit" class="auth-submit">ログイン</button>
+            </form>
+            <div id="login-error" class="auth-error"></div>
+        </div>
+
+        <div id="register-panel" class="auth-panel">
+            <form id="register-form" class="auth-form">
+                <label class="auth-label">USER_ID</label>
+                <input type="text" id="reg-username" required class="auth-input" placeholder="ユーザーID" autocomplete="username">
+
+                <label class="auth-label">PASSWORD</label>
+                <input type="password" id="reg-password" required class="auth-input" placeholder="パスワード" autocomplete="new-password">
+
+                <label class="auth-label">EMAIL（任意）</label>
+                <input type="email" id="reg-email" class="auth-input" placeholder="email@example.com" autocomplete="email">
+
+                <button type="submit" class="auth-submit">新規登録</button>
+            </form>
+            <div id="register-error" class="auth-error"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const tabs = document.querySelectorAll(".auth-tab");
+    const panels = document.querySelectorAll(".auth-panel");
+    tabs.forEach(function(t) {
+        t.addEventListener("click", function() {
+            const tab = t.dataset.tab;
+            tabs.forEach(function(x) { x.classList.remove("active"); });
+            panels.forEach(function(x) { x.classList.remove("active"); });
+            t.classList.add("active");
+            var panel = document.getElementById(tab + "-panel");
+            if (panel) panel.classList.add("active");
+        });
+    });
+
+    function setLoginError(msg) {
+        var err = document.getElementById("login-error");
+        if (err) err.textContent = msg;
+    }
+    function setRegisterError(msg, isSuccess) {
+        var err = document.getElementById("register-error");
+        if (!err) return;
+        err.textContent = msg;
+        err.style.color = isSuccess ? "var(--success)" : "";
+    }
+    function parseError(res, fallback) {
+        var ct = res.headers.get("Content-Type") || "";
+        if (ct.indexOf("application/json") !== -1) {
+            return res.json().then(function(data) { return data.error || fallback; });
+        }
+        return res.text().then(function() { return fallback + " (" + res.status + ")"; });
+    }
+
+    var loginForm = document.getElementById("login-form");
+    if (loginForm) {
+        loginForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+            setLoginError("");
+            var opts = {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    username: document.getElementById("username").value,
+                    password: document.getElementById("password").value
+                }),
+                credentials: "same-origin"
+            };
+            fetch("/api/v1/auth/login", opts)
+                .then(function(res) {
+                    if (res.ok) {
+                        window.location.href = "/";
+                        return;
+                    }
+                    return parseError(res, "ログインに失敗しました").then(setLoginError);
+                })
+                .catch(function(e) {
+                    setLoginError("通信エラーです。サーバーが起動しているか確認してください。");
+                });
+        });
+    }
+
+    var registerForm = document.getElementById("register-form");
+    if (registerForm) {
+        registerForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+            setRegisterError("", false);
+            var opts = {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    username: document.getElementById("reg-username").value,
+                    password: document.getElementById("reg-password").value,
+                    email: document.getElementById("reg-email").value || undefined
+                }),
+                credentials: "same-origin"
+            };
+            fetch("/api/v1/auth/register", opts)
+                .then(function(res) {
+                    if (res.ok) {
+                        setRegisterError("登録しました。ログインしてください。", true);
+                        return;
+                    }
+                    return parseError(res, "登録に失敗しました").then(function(msg) {
+                        setRegisterError(msg, false);
+                    });
+                })
+                .catch(function() {
+                    setRegisterError("通信エラーです。サーバーが起動しているか確認してください。", false);
+                });
+        });
+    }
+
+    if (window.location.hash === "#register") {
+        var registerTab = document.querySelector(".auth-tab[data-tab='register']");
+        if (registerTab) registerTab.click();
+    }
+});
+</script>
+{% endblock %}

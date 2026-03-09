@@ -1,0 +1,86 @@
+services:
+  # Web Service
+  web:
+    type: web
+    name: ranshi-kun-web
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn --bind 0.0.0.0:$PORT --workers 4 --timeout 120 run:app"
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        value: sfnosavnoiasherioanfeosivphizsud
+      - key: ADMIN_API_TOKEN
+        value: Serika
+      - key: SESSION_COOKIE_SECURE
+        value: true
+      - key: SESSION_COOKIE_HTTPONLY
+        value: true
+      - key: SESSION_COOKIE_SAMESITE
+        value: Lax
+      - key: LOG_LEVEL
+        value: INFO
+      - key: FORCE_HTTPS
+        value: true
+      - key: WEB_CONCURRENCY
+        value: 4
+
+  # PostgreSQL Database Service
+  database:
+    type: pserv
+    name: ranshi-kun-db
+    plan: free
+    databaseName: ranshi_kun
+    user: ranshi_kun_user
+
+  # Redis Service (for caching/sessions)
+  redis:
+    type: pserv
+    name: ranshi-kun-redis
+    plan: free
+    ipAllowList: []  # Only allow internal connections
+
+# Health checks
+healthCheckPath: /health
+
+# Auto-deploy configuration
+autoDeploy: true
+
+# Build configuration
+buildFilter:
+  paths:
+    - src: app/**
+    - src: requirements.txt
+    - src: run.py
+    - src: config_render.py
+
+# Routing
+routes:
+  - type: web
+    name: ranshi-kun
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn --bind 0.0.0.0:$PORT --workers 4 --timeout 120 run:app"
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        value: sfnosavnoiasherioanfeosivphizsud
+      - key: ADMIN_API_TOKEN
+        value: Serika
+      - key: DATABASE_URL
+        value: ${database.DATABASE_URL}
+      - key: SESSION_COOKIE_SECURE
+        value: true
+      - key: SESSION_COOKIE_HTTPONLY
+        value: true
+      - key: SESSION_COOKIE_SAMESITE
+        value: Lax
+      - key: LOG_LEVEL
+        value: INFO
+      - key: FORCE_HTTPS
+        value: true
+      - key: WEB_CONCURRENCY
+        value: 4

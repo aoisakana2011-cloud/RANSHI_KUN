@@ -1,0 +1,594 @@
+{% extends "layout.html" %}
+{% block content %}
+<h1 class="dash-title">RANSHI_KUN <span style="font-size:0.6em; color: var(--text-muted); font-weight:500">（ミサトクション共同開発）</span></h1>
+
+<section class="section individual-section">
+    <h3>登録済みの個体</h3>
+    <div id="individual-list" class="individual-list"></div>
+    <form id="add-individual-form" class="add-individual-form">
+        <label>UID</label>
+        <input type="text" id="new-uid" required placeholder="新規ID">
+        <button type="submit">追加</button>
+    </form>
+</section>
+
+<section class="section input-section">
+    <h3>今日の体調を入力して予測</h3>
+    <p class="form-criteria">※ 入力した「日付」の日の体調を記録し、その日の確率を出します。グラフは「今日」から60日分の予測です。</p>
+    <form id="predict-form" class="predict-form">
+        <div class="form-grid">
+            <div class="form-row">
+                <label>対象UID</label>
+                <input type="text" id="predict-uid" required placeholder="個体をクリックで自動入力">
+            </div>
+            <div class="form-row">
+                <label>記録する日付</label>
+                <input type="date" id="predict-date" required>
+            </div>
+            <div class="form-row">
+                <label>体育 <span class="criteria">0:見学 1:ほぼ見学 2:運動減少 3:普通</span></label>
+                <input type="number" id="predict-gym" min="0" max="3" value="0" title="0:欠席 1:ほぼ欠席 2:運動減少 3:普通">
+            </div>
+            <div class="form-row">
+                <label>出欠 <span class="criteria">0:通常 1:早退/遅刻 2:欠席</span></label>
+                <input type="number" id="predict-absent" min="0" max="2" value="0" title="0:通常 1:早退/遅刻 2:欠席">
+            </div>
+            <div class="form-row">
+                <label>腹痛 <span class="criteria">0〜5（強さ）</span></label>
+                <input type="number" id="predict-pain" min="0" max="5" value="0">
+            </div>
+            <div class="form-row">
+                <label>頭痛 <span class="criteria">0〜5（強さ）</span></label>
+                <input type="number" id="predict-headache" min="0" max="5" value="0">
+            </div>
+            <div class="form-row">
+                <label>緊張 <span class="criteria">0〜5（強さ）</span></label>
+                <input type="number" id="predict-tone" min="0" max="5" value="0">
+            </div>
+            <div class="form-row">
+                <label>咳 <span class="criteria">0〜4</span></label>
+                <input type="number" id="predict-cough" min="0" max="4" value="0">
+            </div>
+            <div class="form-row">
+                <label>トイレ回数 <span class="criteria">その日の回数</span></label>
+                <input type="number" id="predict-toilet-count" min="0" max="20" value="0">
+            </div>
+            <div class="form-row">
+                <label>メモ</label>
+                <input type="text" id="predict-notes" placeholder="任意">
+            </div>
+        </div>
+        <div class="form-buttons">
+            <button type="submit" name="action" value="predict">予測する</button>
+            <button type="button" id="register-btn">登録（履歴のみ・学習用）</button>
+        </div>
+    </form>
+    <div id="predict-result" class="predict-result"></div>
+    <div id="chart-wrap" class="chart-wrap" style="display:none;">
+        <canvas id="prediction-chart"></canvas>
+    </div>
+</section>
+
+<style>
+.evaluation-section {
+    background: var(--bg-secondary);
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+}
+.eval-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+.eval-controls input {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+.eval-controls button {
+    padding: 0.5rem 1rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.eval-results {
+    background: var(--bg-primary);
+    padding: 1rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+.eval-metric {
+    display: inline-block;
+    margin: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    text-align: center;
+}
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+.metric-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+.accuracy-high { color: #28a745; }
+.accuracy-medium { color: #ffc107; }
+.accuracy-low { color: #dc3545; }
+</style>
+
+<section class="section evaluation-section">
+    <h3>予測評価・フィードバック</h3>
+    <div id="evaluation-panel">
+        <div class="eval-controls">
+            <label>評価対象UID:</label>
+            <input type="text" id="eval-uid" placeholder="UIDを入力">
+            <button id="load-evaluation">評価データ読み込み</button>
+        </div>
+        <div id="evaluation-results" class="eval-results">
+            <p>評価データはありません</p>
+        </div>
+    </div>
+</section>
+
+<section class="section history-section">
+    <h3>履歴</h3>
+    <div id="history-list" class="history-list"></div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+let currentUid = null;
+let predictionChart = null;
+
+function parseYMD(s) {
+    const [y, m, d] = s.split("-").map(Number);
+    return new Date(y, m - 1, d);
+}
+
+function daysBetween(d0, d1) {
+    return Math.round((d1 - d0) / 86400000);
+}
+
+function normalPDF(x, mu, sigma) {
+    if (sigma <= 0) return 0;
+    return (1 / (sigma * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mu) / sigma, 2));
+}
+
+function drawPredictionChart(dates, percent, centerDate, sigma) {
+    const wrap = document.getElementById("chart-wrap");
+    const canvas = document.getElementById("prediction-chart");
+    if (!dates.length) {
+        wrap.style.display = "none";
+        return;
+    }
+    wrap.style.display = "block";
+
+    const firstDate = parseYMD(dates[0]);
+    const center = parseYMD(centerDate);
+    const muPos = daysBetween(firstDate, center);
+    const sigmaNum = Number(sigma) || 2;
+    const maxBar = Math.max(...percent, 0.01);
+    const truePdfMax = 1 / (sigmaNum * Math.sqrt(2 * Math.PI));
+    const scale = maxBar / 100 / truePdfMax;
+    const normalCurve = dates.map((_, i) => normalPDF(i, muPos, sigmaNum) * scale * 100);
+
+    const labels = dates.map(d => {
+        const [y, m, day] = d.split("-");
+        return m + "/" + day;
+    });
+
+    if (predictionChart) predictionChart.destroy();
+    predictionChart = new Chart(canvas, {
+        type: "bar",
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: "推定確率（日別）",
+                    data: percent,
+                    backgroundColor: "rgba(196, 77, 122, 0.6)",
+                    borderColor: "rgba(196, 77, 122, 0.9)",
+                    borderWidth: 1,
+                    order: 2,
+                },
+                {
+                    label: "正規分布 (σ=" + sigmaNum.toFixed(1) + "日)",
+                    data: normalCurve,
+                    type: "line",
+                    borderColor: "#e8a735",
+                    backgroundColor: "transparent",
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: false,
+                    order: 1,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { position: "top" },
+                title: {
+                    display: true,
+                    text: "発生確率の推定（期間評価） Center: " + centerDate,
+                    font: { size: 13 },
+                },
+            },
+            scales: {
+                x: {
+                    ticks: { maxRotation: 45, maxTicksLimit: 20 },
+                },
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: "推定確率 (%)" },
+                },
+            },
+        },
+    });
+}
+
+async function loadIndividuals() {
+    const res = await fetch("/api/v1/individuals");
+    const data = await res.json();
+    const list = document.getElementById("individual-list");
+    list.innerHTML = "";
+    data.forEach(ind => {
+        const div = document.createElement("div");
+        div.className = "individual-item";
+        div.innerHTML = "<strong>" + ind.uid + "</strong><button type=\"button\" onclick=\"event.stopPropagation(); loadHistory('" + ind.uid.replace(/'/g, "\\'") + "')\">履歴を見る</button>";
+        div.addEventListener("click", () => {
+            currentUid = ind.uid;
+            document.getElementById("predict-uid").value = ind.uid;
+        });
+        list.appendChild(div);
+    });
+}
+
+async function loadHistory(uid) {
+    currentUid = uid;
+    document.getElementById("predict-uid").value = uid;
+    const res = await fetch("/api/v1/history/" + encodeURIComponent(uid));
+    const data = await res.json();
+    const list = document.getElementById("history-list");
+    list.innerHTML = "";
+    data.forEach(h => {
+        const div = document.createElement("div");
+        div.className = "history-item";
+        div.innerHTML = "<span>" + h.date + "</span><span>score: " + h.raw_score + "</span><span>prob: " + h.final_prob + "</span>";
+        list.appendChild(div);
+    });
+}
+
+document.getElementById("add-individual-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const uid = document.getElementById("new-uid").value.trim();
+    const res = await fetch("/api/v1/individuals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid }),
+    });
+    if (res.ok) {
+        loadIndividuals();
+        document.getElementById("new-uid").value = "";
+    }
+});
+
+document.getElementById("predict-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const uid = document.getElementById("predict-uid").value.trim();
+    if (!uid) {
+        alert("UIDを入力してください");
+        return;
+    }
+    const dateStr = document.getElementById("predict-date").value;
+    if (!dateStr) {
+        alert("日付を入力してください");
+        return;
+    }
+    const payload = {
+        datetime: dateStr + " 07:00",
+        gym: Number(document.getElementById("predict-gym").value || 0),
+        absent: Number(document.getElementById("predict-absent").value || 0),
+        pain: Number(document.getElementById("predict-pain").value || 0),
+        headache: Number(document.getElementById("predict-headache").value || 0),
+        tone_pressure: Number(document.getElementById("predict-tone").value || 0),
+        cough: Number(document.getElementById("predict-cough").value || 0),
+        toilet_times: Array.from({ length: Number(document.getElementById("predict-toilet-count").value || 0) }).map(() => ({ time: "07:00", duration_min: 3 })),
+        notes: document.getElementById("predict-notes").value || "",
+    };
+    const res = await fetch("/api/v1/predict/" + encodeURIComponent(uid), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const out = document.getElementById("predict-result");
+    if (!res.ok) {
+        try {
+            const err = await res.json();
+            out.innerHTML = "予測に失敗しました: " + (err.error || res.statusText);
+        } catch (_) {
+            out.innerHTML = "予測に失敗しました";
+        }
+        document.getElementById("chart-wrap").style.display = "none";
+        return;
+    }
+    const data = await res.json();
+    const todayProb = (data.entry && data.entry.final_prob != null ? data.entry.final_prob : 0) * 100;
+    const dates = data.prediction && data.prediction.dates ? data.prediction.dates : [];
+    const percent = data.prediction && data.prediction.percent ? data.prediction.percent : [];
+    const centerDate = (data.prediction && data.prediction.center_date) || "";
+    const sigma = (data.prediction && data.prediction.sigma) != null ? data.prediction.sigma : 2;
+
+    const pairs = dates.map((d, i) => ({ date: d, p: percent[i] || 0 }));
+    pairs.sort((a, b) => b.p - a.p);
+    const top = pairs.slice(0, 5);
+
+    let html = "<strong>" + uid + "</strong> の " + (data.entry && data.entry.date) + " の推定: " + todayProb.toFixed(1) + "%<br>";
+    html += "中心日（予測ピーク）: " + centerDate + " &nbsp; σ=" + sigma.toFixed(2) + " 日<br>";
+    html += "確率が高い日 上位5日:<br>";
+    top.forEach(function (t) {
+        html += t.date + ": " + t.p.toFixed(1) + "%<br>";
+    });
+    out.innerHTML = html;
+
+    if (dates.length && percent.length) {
+        drawPredictionChart(dates, percent, centerDate, sigma);
+    } else {
+        document.getElementById("chart-wrap").style.display = "none";
+    }
+    loadHistory(uid);
+});
+
+document.getElementById("register-btn").addEventListener("click", async () => {
+    const uid = document.getElementById("predict-uid").value.trim();
+    if (!uid) {
+        alert("UIDを入力してください");
+        return;
+    }
+    const dateStr = document.getElementById("predict-date").value;
+    if (!dateStr) {
+        alert("日付を入力してください");
+        return;
+    }
+    const payload = {
+        datetime: dateStr + " 07:00",
+        gym: Number(document.getElementById("predict-gym").value || 0),
+        absent: Number(document.getElementById("predict-absent").value || 0),
+        pain: Number(document.getElementById("predict-pain").value || 0),
+        headache: Number(document.getElementById("predict-headache").value || 0),
+        tone_pressure: Number(document.getElementById("predict-tone").value || 0),
+        cough: Number(document.getElementById("predict-cough").value || 0),
+        toilet_times: Array.from({ length: Number(document.getElementById("predict-toilet-count").value || 0) }).map(() => ({ time: "07:00", duration_min: 3 })),
+        notes: document.getElementById("predict-notes").value || "",
+    };
+    const res = await fetch("/api/v1/register/" + encodeURIComponent(uid), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const out = document.getElementById("predict-result");
+    if (!res.ok) {
+        try {
+            const err = await res.json();
+            out.innerHTML = "登録に失敗: " + (err.error || res.statusText);
+        } catch (_) {
+            out.innerHTML = "登録に失敗しました";
+        }
+        return;
+    }
+    const data = await res.json();
+    out.innerHTML = "<strong>" + data.message + "</strong> " + (data.entry && data.entry.date ? data.entry.date + " を記録しました。" : "");
+    loadHistory(uid);
+});
+
+// 評価システム関数
+async function loadEvaluation() {
+    const uid = document.getElementById('eval-uid').value.trim();
+    if (!uid) {
+        alert('UIDを入力してください');
+        return;
+    }
+
+    try {
+        // 履歴データを取得
+        const historyResponse = await fetch(`/api/v1/history/${encodeURIComponent(uid)}`);
+        const historyData = await historyResponse.json();
+        
+        // 個体情報を取得
+        const individualsResponse = await fetch('/api/v1/individuals');
+        const individualsData = await individualsResponse.json();
+        const individual = individualsData.find(ind => ind.uid === uid);
+        
+        if (!individual || historyData.length === 0) {
+            document.getElementById('evaluation-results').innerHTML = '<p>評価データがありません</p>';
+            return;
+        }
+
+        // 評価指標を計算
+        const evaluation = calculatePredictionAccuracy(historyData, individual);
+        displayEvaluationResults(evaluation);
+        
+    } catch (error) {
+        console.error('評価データの読み込みに失敗しました:', error);
+        document.getElementById('evaluation-results').innerHTML = '<p>評価データの読み込みに失敗しました</p>';
+    }
+}
+
+function calculatePredictionAccuracy(history, individual) {
+    const highProbEntries = history.filter(entry => entry.final_prob >= 0.6);
+    const totalEntries = history.length;
+    
+    // 周期予測の正確性
+    const actualCycleDays = individual.cycle_days;
+    const predictedCycleDays = calculateAverageCycleFromHistory(history);
+    const cycleAccuracy = Math.max(0, 100 - Math.abs(actualCycleDays - predictedCycleDays) / actualCycleDays * 100);
+    
+    // 高確率予測の割合
+    const highProbRatio = (highProbEntries.length / totalEntries) * 100;
+    
+    // 予測信頼度の平均
+    const avgConfidence = history.reduce((sum, entry) => sum + entry.final_prob, 0) / totalEntries;
+    
+    // スコア分布
+    const scoreDistribution = calculateScoreDistribution(history);
+    
+    // 最近の改善傾向
+    const recentTrend = calculateRecentTrend(history);
+    
+    return {
+        totalEntries,
+        highProbEntries: highProbEntries.length,
+        cycleAccuracy,
+        highProbRatio,
+        avgConfidence,
+        scoreDistribution,
+        recentTrend,
+        actualCycleDays,
+        predictedCycleDays
+    };
+}
+
+function calculateAverageCycleFromHistory(history) {
+    if (history.length < 2) return 28;
+    
+    // 高確率日間の平均間隔を計算
+    const highProbDates = history
+        .filter(entry => entry.final_prob >= 0.6)
+        .map(entry => new Date(entry.date))
+        .sort((a, b) => a - b);
+    
+    if (highProbDates.length < 2) return 28;
+    
+    let totalDays = 0;
+    let intervals = 0;
+    
+    for (let i = 1; i < highProbDates.length; i++) {
+        const daysDiff = (highProbDates[i] - highProbDates[i-1]) / (1000 * 60 * 60 * 24);
+        if (daysDiff > 10 && daysDiff < 50) { // 妥当な周期範囲
+            totalDays += daysDiff;
+            intervals++;
+        }
+    }
+    
+    return intervals > 0 ? totalDays / intervals : 28;
+}
+
+function calculateScoreDistribution(history) {
+    const ranges = {
+        '0-20%': 0,
+        '20-40%': 0,
+        '40-60%': 0,
+        '60-80%': 0,
+        '80-100%': 0
+    };
+    
+    history.forEach(entry => {
+        const prob = entry.final_prob * 100;
+        if (prob < 20) ranges['0-20%']++;
+        else if (prob < 40) ranges['20-40%']++;
+        else if (prob < 60) ranges['40-60%']++;
+        else if (prob < 80) ranges['60-80%']++;
+        else ranges['80-100%']++;
+    });
+    
+    return ranges;
+}
+
+function calculateRecentTrend(history) {
+    if (history.length < 10) return 'insufficient_data';
+    
+    const recent = history.slice(-10);
+    const older = history.slice(-20, -10);
+    
+    if (older.length === 0) return 'insufficient_data';
+    
+    const recentAvg = recent.reduce((sum, entry) => sum + entry.final_prob, 0) / recent.length;
+    const olderAvg = older.reduce((sum, entry) => sum + entry.final_prob, 0) / older.length;
+    
+    const diff = recentAvg - olderAvg;
+    
+    if (diff > 0.1) return 'improving';
+    else if (diff < -0.1) return 'declining';
+    else return 'stable';
+}
+
+function displayEvaluationResults(evaluation) {
+    const resultsDiv = document.getElementById('evaluation-results');
+    
+    const accuracyClass = evaluation.cycleAccuracy >= 80 ? 'accuracy-high' : 
+                        evaluation.cycleAccuracy >= 60 ? 'accuracy-medium' : 'accuracy-low';
+    
+    const trendText = {
+        'improving': '改善中 ↗',
+        'declining': '低下中 ↘',
+        'stable': '安定 →',
+        'insufficient_data': 'データ不足'
+    };
+    
+    const trendClass = {
+        'improving': 'accuracy-high',
+        'declining': 'accuracy-low',
+        'stable': 'accuracy-medium',
+        'insufficient_data': ''
+    };
+    
+    resultsDiv.innerHTML = `
+        <div style="margin-bottom: 1rem;">
+            <h4>予測精度評価</h4>
+            <div class="eval-metric">
+                <div class="metric-value ${accuracyClass}">${evaluation.cycleAccuracy.toFixed(1)}%</div>
+                <div class="metric-label">周期予測精度</div>
+            </div>
+            <div class="eval-metric">
+                <div class="metric-value">${evaluation.totalEntries}</div>
+                <div class="metric-label">総記録数</div>
+            </div>
+            <div class="eval-metric">
+                <div class="metric-value">${evaluation.highProbEntries}</div>
+                <div class="metric-label">高確率日数</div>
+            </div>
+            <div class="eval-metric">
+                <div class="metric-value">${evaluation.avgConfidence.toFixed(3)}</div>
+                <div class="metric-label">平均信頼度</div>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 1rem;">
+            <h4>周期情報</h4>
+            <p>実際の周期: ${evaluation.actualCycleDays.toFixed(1)}日</p>
+            <p>予測周期: ${evaluation.predictedCycleDays.toFixed(1)}日</p>
+            <p>高確率日割合: ${evaluation.highProbRatio.toFixed(1)}%</p>
+        </div>
+        
+        <div style="margin-bottom: 1rem;">
+            <h4>最近の傾向: <span class="${trendClass[evaluation.recentTrend]}">${trendText[evaluation.recentTrend]}</span></h4>
+        </div>
+        
+        <div>
+            <h4>確率分布</h4>
+            ${Object.entries(evaluation.scoreDistribution).map(([range, count]) => 
+                `<span style="margin-right: 1rem;">${range}: ${count}件</span>`
+            ).join('')}
+        </div>
+    `;
+}
+
+// イベントリスナー
+document.getElementById('load-evaluation').addEventListener('click', loadEvaluation);
+
+// 日付の初期値は今日
+document.getElementById("predict-date").value = new Date().toISOString().slice(0, 10);
+
+loadIndividuals();
+</script>
+{% endblock %}
