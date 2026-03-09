@@ -51,38 +51,71 @@
             </div>
             <div class="form-row">
                 <label>トイレ回数 <span class="criteria">その日の回数</span></label>
-                <input type="number" id="predict-toilet-count" min="0" max="20" value="0">
+                <input type="number" id="predict-toilet-count" min="0" max="10" value="0" onchange="updateToiletTable()">
             </div>
             <div class="form-row">
                 <label>トイレ詳細</label>
-                <div class="toilet-details">
-                    <div class="toilet-item" id="toilet-template" style="display:none;">
-                        <input type="time" class="toilet-time" placeholder="時間">
-                        <input type="number" class="toilet-duration" placeholder="持続時間(分)" min="0" max="60">
-                        <button type="button" class="toilet-remove" onclick="removeToiletItem(this)">削除</button>
-                    </div>
-                    <button type="button" class="toilet-add" onclick="addToiletItem()">+ トイレを追加</button>
+                <div class="toilet-table-container" id="toilet-table-container" style="display:none;">
+                    <table class="toilet-table">
+                        <thead>
+                            <tr>
+                                <th>回数</th>
+                                <th>時刻</th>
+                                <th>所要時間 (分)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="toilet-table-body">
+                        </tbody>
+                    </table>
                 </div>
             </div>
             <div class="form-row">
                 <label>薬剤服用</label>
-                <div class="meds-details">
-                    <div class="meds-item" id="med-template" style="display:none;">
-                        <select class="med-category" onchange="updateMedOptions(this)">
-                            <option value="">カテゴリを選択</option>
+                <div class="meds-fixed">
+                    <div class="med-item">
+                        <div class="med-header">一つ目</div>
+                        <select class="med-category" id="med1-category" onchange="updateMedOptions('med1')">
+                            <option value="">薬の種類を選択</option>
                             <option value="生理のときにしかほぼ使わない薬">生理のときにしかほぼ使わない薬</option>
                             <option value="日用でも生理でも使う薬">日用でも生理でも使う薬</option>
                             <option value="花粉症の薬">花粉症の薬</option>
                             <option value="その他の薬">その他の薬</option>
                         </select>
-                        <select class="med-name" placeholder="薬剤名">
-                            <option value="">薬剤を選択</option>
+                        <select class="med-name" id="med1-name">
+                            <option value="">名称不明</option>
                         </select>
-                        <input type="time" class="med-time" placeholder="服用時間">
-                        <input type="text" class="med-note" placeholder="メモ">
-                        <button type="button" class="med-remove" onclick="removeMedItem(this)">削除</button>
+                        <input type="time" class="med-time" id="med1-time" value="">
                     </div>
-                    <button type="button" class="med-add" onclick="addMedItem()">+ 薬剤を追加</button>
+                    
+                    <div class="med-item">
+                        <div class="med-header">二つ目</div>
+                        <select class="med-category" id="med2-category" onchange="updateMedOptions('med2')">
+                            <option value="">薬の種類を選択</option>
+                            <option value="生理のときにしかほぼ使わない薬">生理のときにしかほぼ使わない薬</option>
+                            <option value="日用でも生理でも使う薬">日用でも生理でも使う薬</option>
+                            <option value="花粉症の薬">花粉症の薬</option>
+                            <option value="その他の薬">その他の薬</option>
+                        </select>
+                        <select class="med-name" id="med2-name">
+                            <option value="">名称不明</option>
+                        </select>
+                        <input type="time" class="med-time" id="med2-time" value="">
+                    </div>
+                    
+                    <div class="med-item">
+                        <div class="med-header">三つ目</div>
+                        <select class="med-category" id="med3-category" onchange="updateMedOptions('med3')">
+                            <option value="">薬の種類を選択</option>
+                            <option value="生理のときにしかほぼ使わない薬">生理のときにしかほぼ使わない薬</option>
+                            <option value="日用でも生理でも使う薬">日用でも生理でも使う薬</option>
+                            <option value="花粉症の薬">花粉症の薬</option>
+                            <option value="その他の薬">その他の薬</option>
+                        </select>
+                        <select class="med-name" id="med3-name">
+                            <option value="">名称不明</option>
+                        </select>
+                        <input type="time" class="med-time" id="med3-time" value="">
+                    </div>
                 </div>
             </div>
             <div class="form-row">
@@ -164,34 +197,66 @@
     margin-bottom: 1rem;
 }
 
-.toilet-item, .meds-item {
+.toilet-table-container {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    margin-bottom: 1rem;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.toilet-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-primary);
+}
+
+.toilet-table th,
+.toilet-table td {
+    border: 1px solid var(--border-color);
+    padding: 0.5rem;
+    text-align: center;
+}
+
+.toilet-table th {
+    background: var(--bg-secondary);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.toilet-table input {
+    width: 100%;
+    padding: 0.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    text-align: center;
+}
+
+.meds-fixed {
     display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.med-item {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr 120px;
     gap: 0.5rem;
     align-items: center;
-    margin-bottom: 0.5rem;
-    padding: 0.5rem;
+    padding: 1rem;
     background: var(--bg-primary);
-    border-radius: 4px;
+    border-radius: 6px;
     border: 1px solid var(--border-color);
 }
 
-.toilet-time, .med-time {
-    padding: 0.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background: var(--bg-primary);
+.med-header {
+    font-weight: 600;
     color: var(--text-primary);
     font-size: 0.9rem;
-}
-
-.toilet-duration, .med-note {
-    padding: 0.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    flex: 1;
 }
 
 .med-category, .med-name {
@@ -201,38 +266,15 @@
     background: var(--bg-primary);
     color: var(--text-primary);
     font-size: 0.9rem;
-    flex: 1;
 }
 
-.toilet-remove, .med-remove {
-    padding: 0.5rem 1rem;
-    background: #dc3545;
-    color: white;
-    border: none;
+.med-time {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
     border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.8rem;
-}
-
-.toilet-add, .med-add {
-    padding: 0.75rem 1.5rem;
-    background: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+    background: var(--bg-primary);
+    color: var(--text-primary);
     font-size: 0.9rem;
-    margin-top: 0.5rem;
-    width: 100%;
-}
-
-.toilet-add:hover, .med-add:hover {
-    background: var(--accent);
-    opacity: 0.9;
-}
-
-.toilet-remove:hover, .med-remove:hover {
-    background: #c82333;
 }
 </style>
 
@@ -259,8 +301,6 @@
 <script>
 let currentUid = null;
 let medsData = {};
-let toiletItems = [];
-let medItems = [];
 
 // 薬剤データを読み込む
 async function loadMedsData() {
@@ -404,58 +444,68 @@ async function loadMedsData() {
     }
 }
 
-// トイレ項目を追加
-function addToiletItem() {
-    const template = document.getElementById('toilet-template');
-    const newItem = template.cloneNode(true);
-    newItem.style.display = 'flex';
-    newItem.id = 'toilet-' + Date.now();
+// トイレ表を更新
+function updateToiletTable() {
+    const count = parseInt(document.getElementById("predict-toilet-count").value) || 0;
+    const container = document.getElementById("toilet-table-container");
+    const tbody = document.getElementById("toilet-table-body");
     
-    const container = template.parentNode;
-    const addButton = container.querySelector('.toilet-add');
-    container.insertBefore(newItem, addButton);
+    if (count === 0) {
+        container.style.display = "none";
+        return;
+    }
     
-    toiletItems.push(newItem);
+    container.style.display = "block";
+    tbody.innerHTML = "";
+    
+    const now = new Date();
+    for (let i = 1; i <= count; i++) {
+        const row = document.createElement("tr");
+        
+        // 回数
+        const countCell = document.createElement("td");
+        countCell.textContent = i + "回目";
+        row.appendChild(countCell);
+        
+        // 時刻
+        const timeCell = document.createElement("td");
+        const timeInput = document.createElement("input");
+        timeInput.type = "time";
+        timeInput.value = formatTime(new Date(now.getTime() - (count - i) * 30 * 60 * 1000));
+        timeCell.appendChild(timeInput);
+        row.appendChild(timeCell);
+        
+        // 所要時間
+        const durationCell = document.createElement("td");
+        const durationInput = document.createElement("input");
+        durationInput.type = "number";
+        durationInput.min = "1";
+        durationInput.max = "60";
+        durationInput.value = "3";
+        durationCell.appendChild(durationInput);
+        row.appendChild(durationCell);
+        
+        tbody.appendChild(row);
+    }
 }
 
-// トイレ項目を削除
-function removeToiletItem(button) {
-    const item = button.parentElement;
-    item.remove();
-    toiletItems = toiletItems.filter(i => i !== item);
-}
-
-// 薬剤項目を追加
-function addMedItem() {
-    const template = document.getElementById('med-template');
-    const newItem = template.cloneNode(true);
-    newItem.style.display = 'flex';
-    newItem.id = 'med-' + Date.now();
-    
-    const container = template.parentNode;
-    const addButton = container.querySelector('.med-add');
-    container.insertBefore(newItem, addButton);
-    
-    medItems.push(newItem);
-}
-
-// 薬剤項目を削除
-function removeMedItem(button) {
-    const item = button.parentElement;
-    item.remove();
-    medItems = medItems.filter(i => i !== item);
+// 時刻フォーマット
+function formatTime(date) {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
 }
 
 // 薬剤カテゴリが変更されたときの処理
-function updateMedOptions(select) {
-    const category = select.value;
-    const nameSelect = select.parentElement.querySelector('.med-name');
+function updateMedOptions(medId) {
+    const category = document.getElementById(`${medId}-category`).value;
+    const nameSelect = document.getElementById(`${medId}-name`);
     
-    nameSelect.innerHTML = '<option value="">薬剤を選択</option>';
+    nameSelect.innerHTML = '<option value="">名称不明</option>';
     
     if (category && medsData[category]) {
         medsData[category].forEach(med => {
-            const option = document.createElement('option');
+            const option = document.createElement("option");
             option.value = med;
             option.textContent = med;
             nameSelect.appendChild(option);
@@ -466,41 +516,41 @@ function updateMedOptions(select) {
 // トイレデータを収集
 function collectToiletData() {
     const toiletData = [];
-    toiletItems.forEach(item => {
-        if (item.style.display !== 'none') {
-            const time = item.querySelector('.toilet-time').value;
-            const duration = parseInt(item.querySelector('.toilet-duration').value) || 0;
-            if (time && duration > 0) {
-                toiletData.push({
-                    time: time,
-                    duration_min: duration
-                });
-            }
+    const rows = document.querySelectorAll("#toilet-table-body tr");
+    
+    rows.forEach(row => {
+        const timeInput = row.querySelector('input[type="time"]');
+        const durationInput = row.querySelector('input[type="number"]');
+        
+        if (timeInput.value && durationInput.value) {
+            toiletData.push({
+                time: timeInput.value,
+                duration_min: parseInt(durationInput.value)
+            });
         }
     });
+    
     return toiletData;
 }
 
 // 薬剤データを収集
 function collectMedsData() {
     const medsData = [];
-    medItems.forEach(item => {
-        if (item.style.display !== 'none') {
-            const category = item.querySelector('.med-category').value;
-            const name = item.querySelector('.med-name').value;
-            const time = item.querySelector('.med-time').value;
-            const note = item.querySelector('.med-note').value;
-            
-            if (name && time) {
-                medsData.push({
-                    name: name,
-                    category: category,
-                    time: time,
-                    note: note
-                });
-            }
+    
+    for (let i = 1; i <= 3; i++) {
+        const category = document.getElementById(`med${i}-category`).value;
+        const name = document.getElementById(`med${i}-name`).value;
+        const time = document.getElementById(`med${i}-time`).value;
+        
+        if (category && time) {
+            medsData.push({
+                name: name || "名称不明",
+                category: category,
+                time: time
+            });
         }
-    });
+    }
+    
     return medsData;
 }
 let predictionChart = null;
@@ -628,7 +678,23 @@ async function loadHistory(uid) {
 document.addEventListener("DOMContentLoaded", async () => {
     await loadMedsData();
     loadIndividuals();
+    
+    // 現在時刻を薬剤時刻入力欄に設定
+    setCurrentTimeToMeds();
 });
+
+// 現在時刻を薬剤時刻入力欄に設定
+function setCurrentTimeToMeds() {
+    const now = new Date();
+    const currentTime = formatTime(now);
+    
+    for (let i = 1; i <= 3; i++) {
+        const timeInput = document.getElementById(`med${i}-time`);
+        if (timeInput && !timeInput.value) {
+            timeInput.value = currentTime;
+        }
+    }
+}
 
 document.getElementById("add-individual-form").addEventListener("submit", async (e) => {
     e.preventDefault();

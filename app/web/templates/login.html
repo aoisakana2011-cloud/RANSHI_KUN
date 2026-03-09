@@ -140,103 +140,6 @@ if group4_meds_taken:
                     <h4>4. 機械学習モデル</h4>
                     <pre class="code-block">特徴量抽出:
 
-制作者が忘れる可能性があるため、一応記述しておきます。制作始めるときの設計のメモの転用です。
-RANSHI_KUN_Flask/
-├── .env
-├── .env.example
-├── .env.production
-├── .env.render
-├── DEPLOYMENT.md
-├── Dockerfile
-├── Dockerfile.render
-├── Procfile
-├── README.md
-├── RENDER_DEPLOYMENT.md
-├── WINDOWS_DEPLOYMENT.md
-├── celeryconfig.py
-├── config.py
-├── config_render.py
-├── deploy-render.sh
-├── deploy.sh
-├── docker-compose.production.yml
-├── docker-compose.yml
-├── gunicorn.conf.py
-├── manual-deploy.sh
-├── render.yaml
-├── requirements.txt
-├── run.py
-│
-├── app/
-│   ├── __init__.py
-│   ├── bot_protection.py
-│   ├── config.py
-│   ├── extensions.py
-│   ├── migrations.py
-│   ├── models.py
-│   ├── monitoring.py
-│   ├── security.py
-│   ├── tasks.py
-│   ├── utils.py
-│   │
-│   ├── api/
-│   │   ├── __init__.py
-│   │   ├── admin.py
-│   │   ├── admin_extended.py
-│   │   ├── auth.py
-│   │   ├── history.py
-│   │   ├── individuals.py
-│   │   └── predict.py
-│   │
-│   ├── data/
-│   │   └── meds_list.json
-│   │
-│   ├── services/
-│   │   ├── __init__.py
-│   │   ├── aggregation.py
-│   │   ├── features.py
-│   │   ├── io.py
-│   │   ├── meds.py
-│   │   ├── ml.py
-│   │   ├── ml_advanced.py
-│   │   ├── ml_models.py
-│   │   ├── parsing.py
-│   │   ├── prediction.py
-│   │   ├── prediction_advanced.py
-│   │   └── provisional.py
-│   │
-│   └── web/
-│       ├── __init__.py
-│       ├── views.py
-│       │
-│       ├── static/
-│       │   └── static.css
-│       │
-│       └── templates/
-│           ├── admin.html
-│           ├── admin_old.html
-│           ├── dashboard.html
-│           ├── layout.html
-│           └── login.html
-│
-├── data/
-├── docker/
-│   └── nginx.conf
-├── individual_data/
-├── migrations/
-├── models/
-├── nginx/
-│   └── default.conf
-├── scripts/
-│   └── backup.sh
-└── tests/
-    ├── __init__.py
-    ├── test_api.py
-    ├── test_models.py
-    ├── test_services.py
-    ├── test_utils.py
-    ├── conftest.py
-    └── fixtures.py
-
 - トイレ回数、平均時間、持続時間
 - 痛み、頭痛、緊張度
 - 体育、出欠、咳の頻度
@@ -416,6 +319,103 @@ combined = prior * (1.0 - evidence_strength) + model_prediction * evidence_stren
    - 咳が多いほど予測確率を抑制
 
 【実装上の工夫】
+すまない！ここに置く！
+制作者Nが忘れる可能性があるため、一応記述しておきます。制作始めるときの設計のメモの転用です。
+RANSHI_KUN_Flask/
+├── .env
+├── .env.example
+├── .env.production
+├── .env.render
+├── DEPLOYMENT.md
+├── Dockerfile
+├── Dockerfile.render
+├── Procfile
+├── README.md
+├── RENDER_DEPLOYMENT.md
+├── WINDOWS_DEPLOYMENT.md
+├── celeryconfig.py
+├── config.py
+├── config_render.py
+├── deploy-render.sh
+├── deploy.sh
+├── docker-compose.production.yml
+├── docker-compose.yml
+├── gunicorn.conf.py
+├── manual-deploy.sh
+├── render.yaml
+├── requirements.txt
+├── run.py
+│
+├── app/
+│   ├── __init__.py
+│   ├── bot_protection.py
+│   ├── config.py
+│   ├── extensions.py
+│   ├── migrations.py
+│   ├── models.py
+│   ├── monitoring.py
+│   ├── security.py
+│   ├── tasks.py
+│   ├── utils.py
+│   │
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── admin_extended.py
+│   │   ├── auth.py
+│   │   ├── history.py
+│   │   ├── individuals.py
+│   │   └── predict.py
+│   │
+│   ├── data/
+│   │   └── meds_list.json
+│   │
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── aggregation.py
+│   │   ├── features.py
+│   │   ├── io.py
+│   │   ├── meds.py
+│   │   ├── ml.py
+│   │   ├── ml_advanced.py
+│   │   ├── ml_models.py
+│   │   ├── parsing.py
+│   │   ├── prediction.py
+│   │   ├── prediction_advanced.py
+│   │   └── provisional.py
+│   │
+│   └── web/
+│       ├── __init__.py
+│       ├── views.py
+│       │
+│       ├── static/
+│       │   └── static.css
+│       │
+│       └── templates/
+│           ├── admin.html
+│           ├── admin_old.html
+│           ├── dashboard.html
+│           ├── layout.html
+│           └── login.html
+│
+├── data/
+├── docker/
+│   └── nginx.conf
+├── individual_data/
+├── migrations/
+├── models/
+├── nginx/
+│   └── default.conf
+├── scripts/
+│   └── backup.sh
+└── tests/
+    ├── __init__.py
+    ├── test_api.py
+    ├── test_models.py
+    ├── test_services.py
+    ├── test_utils.py
+    ├── conftest.py
+    └── fixtures.py
 
 - データ不足時のフォールバック処理
 - 異常値検出と除外ロジック
