@@ -20,7 +20,11 @@ RUN apt-get update && apt-get install -y \
 # Create non-root user first
 RUN useradd --create-home --shell /bin/bash app
 
-# Install Python dependencies
+# Create required directories with proper permissions
+RUN mkdir -p /app/models /app/logs /tmp && \
+    chown -R app:app /app /tmp
+
+# Copy requirements and install as non-root user
 COPY requirements.txt .
 RUN chown app:app requirements.txt
 USER app
@@ -41,4 +45,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
 EXPOSE 5000
 
 # Start application with Render-friendly settings
-CMD ["sh", "-c", "mkdir -p /tmp && gunicorn --bind 0.0.0.0:${PORT:-5000} --workers ${WEB_CONCURRENCY:-4} --timeout 120 --access-logfile - --error-logfile - --pid /tmp/gunicorn.pid run:app"]
+CMD ["sh", "-c", "mkdir -p /tmp /app/models && gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 1 --timeout 120 --access-logfile - --error-logfile - --pid /tmp/gunicorn.pid --worker-class sync --user app run:app"]
