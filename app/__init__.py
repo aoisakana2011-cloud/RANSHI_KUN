@@ -30,10 +30,12 @@ def create_app(config_object=None):
         from .api.auth import bp as auth_bp
         from .api.individuals import bp as ind_bp
         from .api.admin import bp as admin_bp
+        from .api.admin_extended import bp as admin_ext_bp
         from .api.predict import bp as predict_bp
         app.register_blueprint(auth_bp, url_prefix="/api/v1/auth")
         app.register_blueprint(ind_bp, url_prefix="/api/v1/individuals")
         app.register_blueprint(admin_bp, url_prefix="/api/v1/admin")
+        app.register_blueprint(admin_ext_bp, url_prefix="/api/v1/admin")
         app.register_blueprint(predict_bp, url_prefix="/api/v1")
     except Exception as e:
         import logging

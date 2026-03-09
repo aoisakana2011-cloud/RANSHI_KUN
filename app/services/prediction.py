@@ -12,30 +12,26 @@ POPULATION_CYCLE_DURATION_AVG = 5.0
 PREDICTION_RANGE_DAYS = 60
 LABEL_THRESHOLD = 0.6
 HIGH_THRESHOLD = 0.84
-MIN_STRONG_UPDATE_DAYS = 60  # 学習期間を短縮して早期適応を促進
+MIN_STRONG_UPDATE_DAYS = 60
 SCORE_PERIOD_DAYS = 5
 
-# 運動は逆効果: 激しい運動＝生理中はありえない → 重みは負
-# 生理予測のため、運動量が少ないほどスコアが高くなるように最適化
-# 医学研究に基づく初期値：腹痛60%、疲労感、腹部膨張、気分変動、乳房張りを考慮
-GYM_WEIGHT_INIT = -4.0  # より強い負の重み（運動不足＝生理兆候）
-ABSENT_WEIGHT_INIT = 2.0  # 欠席/早退を強く生理兆候として評価
-PAIN_WEIGHT_INIT = 2.2  # 腹痛（60%が経験）を最強の生理兆候として評価
-HEADACHE_WEIGHT_INIT = 1.5  # 頭痛を生理兆候として適切に評価
-TONE_WEIGHT_INIT = 1.0  # 緊張・気分変動を考慮
-# 新しい医学的兆候の重み（将来的な拡張用）
-FATIGUE_WEIGHT_INIT = 1.8  # 疲労感（ホルモン変動による）
-BLOATING_WEIGHT_INIT = 1.6  # 腹部膨張（消化器系への影響）
-BREAST_TENDERNESS_WEIGHT_INIT = 1.4  # 乳房張り（ホルモン変動）
-PROB_CAP_MAX = 0.85  # 学習後でも最大85%（生理予測の確実性を高める）
-PROB_CAP_MIN = 0.20  # 未学習時の上限目安（少し低く設定）
-COUGH_MAX_MULTIPLIER_INIT = 1.1  # 咳の影響を少し抑制
+GYM_WEIGHT_INIT = -4.0
+ABSENT_WEIGHT_INIT = 2.0
+PAIN_WEIGHT_INIT = 2.2
+HEADACHE_WEIGHT_INIT = 1.5
+TONE_WEIGHT_INIT = 1.0
+FATIGUE_WEIGHT_INIT = 1.8
+BLOATING_WEIGHT_INIT = 1.6
+BREAST_TENDERNESS_WEIGHT_INIT = 1.4
+PROB_CAP_MAX = 0.85
+PROB_CAP_MIN = 0.20
+COUGH_MAX_MULTIPLIER_INIT = 1.1
 COUGH_MIN_MULTIPLIER_INIT = 0.3
-GROUP1_TARGET_PROB_INIT = 0.95  # 生理専用薬の確率を少し現実的に
-GROUP2_TARGET_PROB_INIT = 0.55  # 日用兼用薬の影響を調整
-GROUP3_MULTIPLIER_INIT = 0.4  # グループ3の重みを調整
-GROUP4_ADD_INIT = 0.05  # グループ4の加算値を調整
-SCORE_SHIFT_INIT = 1.0  # シフト値を大幅に下げて確率を適正化
+GROUP1_TARGET_PROB_INIT = 0.95
+GROUP2_TARGET_PROB_INIT = 0.55
+GROUP3_MULTIPLIER_INIT = 0.4
+GROUP4_ADD_INIT = 0.05
+SCORE_SHIFT_INIT = 1.0
 
 
 def _default_weights() -> Dict[str, float]:
@@ -153,19 +149,14 @@ def _evaluate_and_maybe_switch_base(uid: str) -> None:
 
 
 def _adaptive_learning_rate(input_count: int, base_alpha: float = 0.30) -> float:
-    """
-    データ量に応じて学習率を適応的に調整
-    - データが少ないほど学習率を高くして早期適応
-    - データが多いほど学習率を低くして安定性を確保
-    """
     if input_count < 10:
-        return min(0.8, base_alpha * 2.5)  # 早期段階では高い学習率
+        return min(0.8, base_alpha * 2.5)
     elif input_count < 30:
-        return min(0.6, base_alpha * 2.0)  # 中間段階
+        return min(0.6, base_alpha * 2.0)
     elif input_count < 60:
-        return min(0.4, base_alpha * 1.3)  # やや高い学習率
+        return min(0.4, base_alpha * 1.3)
     else:
-        return max(0.1, base_alpha * 0.8)  # 安定した低学習率
+        return max(0.1, base_alpha * 0.8)
 
 
 def _update_cycle_on_observation(uid: str, observed_date: date, observed_prob: float) -> None:
@@ -183,7 +174,6 @@ def _update_cycle_on_observation(uid: str, observed_date: date, observed_prob: f
     shift = (datetime.combine(observed_date, time.min) - predicted_center).days
     input_count = int(ind.get("input_count", 0) or 0)
     
-    # 適応的学習率の適用
     alpha = _adaptive_learning_rate(input_count)
     
     new_cycle = (1 - alpha) * cycle + alpha * (cycle + shift)
@@ -191,7 +181,7 @@ def _update_cycle_on_observation(uid: str, observed_date: date, observed_prob: f
     ind["cycle_days"] = float(new_cycle)
     ind["last_high_prob_date"] = observed_date.strftime("%Y-%m-%d")
     ind["last_observed_prob"] = float(observed_prob)
-    ind["last_learning_rate"] = float(alpha)  # 学習率を記録
+    ind["last_learning_rate"] = float(alpha)
     save_individual(uid, ind)
 
 
@@ -319,42 +309,34 @@ def add_entry_and_predict(uid: str, payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _enhanced_sigmoid(x: float, shift: float = 0.0, steepness: float = 1.0) -> float:
-    """
-    拡張シグモイド関数 - シフトと勾配を調整可能
-    生理予測のための感度調整
-    """
     return 1.0 / (1.0 + math.exp(-steepness * (x - shift)))
 
 
-def _calculate_medical_probability(raw_score: float, weights_sum: float, params: Dict[str, float]) -> float:
-    """
-    医学的要因を考慮した確率計算
-    - 運動不足の重みを特別考慮
-    - 痛みの強さを非線形で評価
-    - 総合的な医学的スコアを計算
-    """
-    # 基本確率計算 - 勾配を緩やかにして感度を調整
-    base_prob = _enhanced_sigmoid(raw_score - params["score_shift"], steepness=0.8)
+def _calculate_medical_probability(raw_score: float, weights_sum: float, params: Dict[str, float], udata: Dict[str, Any]) -> float:
+    base_prob = _enhanced_sigmoid(raw_score - params["score_shift"], steepness=0.6)
     
-    # 運動不足ボーナス（gymが負の値の場合）
     gym_bonus = 0.0
-    if weights_sum < 0:  # 運動不足が強い場合
-        gym_bonus = min(0.25, abs(weights_sum) * 0.1)  # ボーナスを増強
+    if weights_sum < 0:
+        gym_bonus = min(0.15, abs(weights_sum) * 0.05)
     
-    # 痛みの非線形評価
     pain_bonus = 0.0
-    if raw_score > 1.0:  # 痛みの閾値を下げる
-        pain_bonus = min(0.30, (raw_score - 1.0) * 0.15)  # ボーナスを増強
+    if raw_score > 2.0:
+        pain_bonus = min(0.20, (raw_score - 2.0) * 0.08)
     
-    # 総合確率の計算
     final_prob = base_prob + gym_bonus + pain_bonus
-    return min(0.95, max(0.0, final_prob))
+    
+    input_count = len(udata.get("history", []))
+    if input_count < 5:
+        final_prob *= 0.5
+    elif input_count < 10:
+        final_prob *= 0.7
+    elif input_count < 20:
+        final_prob *= 0.85
+    
+    return min(0.90, max(0.0, final_prob))
 
 
 def _predict_internal_factors(udata: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    目視観測可能なデータから内部要因（ホルモンバランスなど）を予測
-    """
     history = udata.get("history", [])
     if len(history) < 5:
         return {
@@ -365,42 +347,31 @@ def _predict_internal_factors(udata: Dict[str, Any]) -> Dict[str, Any]:
             "confidence": 0.1
         }
     
-    # 最近の10件のデータを分析
     recent_history = history[-10:]
     
-    # 身体的症状からホルモンバランスを推定
     pain_avg = sum(entry.get("pain", 0) for entry in recent_history) / len(recent_history)
     headache_avg = sum(entry.get("headache", 0) for entry in recent_history) / len(recent_history)
     toilet_avg = sum(entry.get("toilet", 0) for entry in recent_history) / len(recent_history)
     gym_avg = sum(entry.get("gym", 0) for entry in recent_history) / len(recent_history)
     
-    # 運動不足はホルモン不調の指標
     exercise_deficit = max(0, 3 - gym_avg) / 3
     
-    # 痛みと頭痛はホルモン変動の指標
-    symptom_score = (pain_avg + headache_avg) / 10  # 正規化
+    symptom_score = (pain_avg + headache_avg) / 10
     
-    # トイレ頻度もホルモン影響
     toilet_score = min(1.0, toilet_avg / 10)
     
-    # ホルモンバランススコア（0-1）
     hormone_balance = min(1.0, exercise_deficit * 0.4 + symptom_score * 0.4 + toilet_score * 0.2)
     
-    # エストロゲンとプロゲステロンの相対レベルを推定
-    # エストロゲン：運動不足、頭痛、中等度の痛みで高くなる傾向
     estrogen_level = min(1.0, exercise_deficit * 0.3 + headache_avg * 0.2 + min(pain_avg, 3) * 0.3)
     
-    # プロゲステロン：強い痛み、トイレ頻度で高くなる傾向
     progesterone_level = min(1.0, max(pain_avg - 2, 0) * 0.4 + toilet_score * 0.3)
     
-    # 周期フェーズの推定
     high_prob_days = [entry for entry in recent_history if entry.get("final_prob", 0) > 0.6]
     if len(high_prob_days) > 0:
         cycle_phase = "luteal" if hormone_balance > 0.6 else "follicular"
     else:
         cycle_phase = "menstrual" if pain_avg > 2 else "follicular"
     
-    # 信頼度（データ量に基づく）
     confidence = min(1.0, len(recent_history) / 20)
     
     return {
@@ -415,7 +386,6 @@ def _predict_internal_factors(udata: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _compute_and_save_entry(uid: str, payload: Dict[str, Any]) -> tuple:
-    """スコア計算・履歴保存・同日マージ・学習まで行い、(entry, udata) を返す。"""
     dt_str = payload.get("datetime") or payload.get("date")
     dt = parse_datetime_str(dt_str) if dt_str else None
     if dt is None:
@@ -436,7 +406,6 @@ def _compute_and_save_entry(uid: str, payload: Dict[str, Any]) -> tuple:
     tone = int(payload.get("tone_pressure", payload.get("tone", 0) or 0))
     cough = int(payload.get("cough", 0) or 0)
 
-    # 重み付きスコア計算
     weighted_score = (
         w["gym"] * gym
         + w["absent"] * absent
@@ -445,7 +414,6 @@ def _compute_and_save_entry(uid: str, payload: Dict[str, Any]) -> tuple:
         + w["tone"] * tone
     )
     
-    # 重みの合計（運動不足ボーナス計算用）
     weights_sum = w["gym"] * gym
     
     raw_score = weighted_score * entry_tf
@@ -465,8 +433,7 @@ def _compute_and_save_entry(uid: str, payload: Dict[str, Any]) -> tuple:
     if CAT_POLLEN in taken_cats:
         raw_score *= 0.5
     
-    # 新しい確率計算関数を使用
-    prob = _calculate_medical_probability(raw_score, weights_sum, p)
+    prob = _calculate_medical_probability(raw_score, weights_sum, p, udata)
     
     if CAT_PERIOD_ONLY in taken_cats:
         prob = 0.99
@@ -523,7 +490,6 @@ def _compute_and_save_entry(uid: str, payload: Dict[str, Any]) -> tuple:
     udata["input_count"] = len(collapsed)
     udata["last_saved"] = datetime.utcnow().isoformat()
     
-    # 内部要因予測を更新
     internal_predictions = _predict_internal_factors(udata)
     udata["internal_predictions"] = internal_predictions
     
@@ -540,7 +506,6 @@ def _compute_and_save_entry(uid: str, payload: Dict[str, Any]) -> tuple:
 
 
 def add_entry_only(uid: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-    """履歴のみ登録（学習用）。予測は返さない。"""
     entry, _ = _compute_and_save_entry(uid, payload)
     return {"message": "登録しました", "uid": uid, "entry": {"date": entry["date"], "raw_score": entry["raw_score"], "final_prob": entry["final_prob"]}}
 

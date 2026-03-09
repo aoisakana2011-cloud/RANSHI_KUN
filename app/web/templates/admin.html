@@ -1,87 +1,491 @@
 {% extends "layout.html" %}
 {% block content %}
-<h1 class="dash-title">管理者ページ</h1>
-
-<section class="section">
-    <h3>システム管理</h3>
-    <div class="admin-controls">
-        <button id="view-all-data">全データ閲覧</button>
-        <button id="view-users">ユーザー管理</button>
-        <button id="delete-all-data">全データ削除</button>
+<div class="admin-dashboard">
+    <div class="admin-header">
+        <h1 class="admin-title">管理者コントロールパネル</h1>
+        <div class="admin-stats">
+            <div class="stat-card">
+                <div class="stat-number" id="userCount">-</div>
+                <div class="stat-label">ユーザー数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="individualCount">-</div>
+                <div class="stat-label">個体数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="dataCount">-</div>
+                <div class="stat-label">データ記録</div>
+            </div>
+        </div>
     </div>
-</section>
 
-<section class="section">
-    <h3>データ閲覧・操作</h3>
-    <div id="data-panel">
-        <p>操作を選択してください</p>
+    <div class="admin-grid">
+        <div class="admin-section">
+            <div class="section-header">
+                <h2>ユーザー管理</h2>
+                <div class="section-actions">
+                    <button class="btn btn-primary" onclick="refreshUsers()">
+                        <i class="icon-refresh">↻</i> 更新
+                    </button>
+                </div>
+            </div>
+            <div class="search-box">
+                <input type="text" id="userSearch" placeholder="ユーザー名で検索..." onkeyup="filterUsers()">
+            </div>
+            <div class="data-table-container">
+                <table class="data-table" id="usersTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>ユーザー名</th>
+                            <th>状態</th>
+                            <th>個体数</th>
+                            <th>最終アクティブ</th>
+                            <th>アクション</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr><td colspan="6" class="loading">読み込み中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="admin-section">
+            <div class="section-header">
+                <h2>システム管理</h2>
+            </div>
+            <div class="system-controls">
+                <div class="control-group">
+                    <h3>データ管理</h3>
+                    <button class="btn btn-info" onclick="exportData()">
+                        <i class="icon-download">⬇</i> データエクスポート
+                    </button>
+                    <button class="btn btn-warning" onclick="showBackupModal()">
+                        <i class="icon-backup">💾</i> バックアップ作成
+                    </button>
+                    <button class="btn btn-danger" onclick="showDeleteAllModal()">
+                        <i class="icon-delete">🗑</i> 全データ削除
+                    </button>
+                </div>
+                
+                <div class="control-group">
+                    <h3>システム設定</h3>
+                    <button class="btn btn-secondary" onclick="showSystemStatus()">
+                        <i class="icon-status">📊</i> システム状態
+                    </button>
+                    <button class="btn btn-secondary" onclick="showLogs()">
+                        <i class="icon-logs">📋</i> ログ表示
+                    </button>
+                    <button class="btn btn-secondary" onclick="showSettings()">
+                        <i class="icon-settings">⚙</i> 設定
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-section">
+            <div class="section-header">
+                <h2>リアルタイム監視</h2>
+            </div>
+            <div class="monitoring-grid">
+                <div class="monitor-card">
+                    <h3>アクティブユーザー</h3>
+                    <div class="metric" id="activeUsers">0</div>
+                </div>
+                <div class="monitor-card">
+                    <h3>今日の予測</h3>
+                    <div class="metric" id="todayPredictions">0</div>
+                </div>
+                <div class="monitor-card">
+                    <h3>システム負荷</h3>
+                    <div class="metric" id="systemLoad">低</div>
+                </div>
+                <div class="monitor-card">
+                    <h3>エラー数</h3>
+                    <div class="metric" id="errorCount">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-section">
+            <div class="section-header">
+                <h2>コメント管理</h2>
+            </div>
+            <div class="comments-container">
+                <div class="filter-tabs">
+                    <button class="tab-btn active" onclick="filterComments('all')">全て</button>
+                    <button class="tab-btn" onclick="filterComments('flagged')">報告済み</button>
+                    <button class="tab-btn" onclick="filterComments('recent')">最新</button>
+                </div>
+                <div id="commentsList" class="comments-list">
+                    <div class="loading">コメントを読み込み中...</div>
+                </div>
+            </div>
+        </div>
     </div>
-</section>
+</div>
+
+<div id="confirmModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">確認</h3>
+            <button class="modal-close" onclick="hideModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p id="modalMessage">本当に実行しますか？</p>
+            <div class="form-group" id="passwordGroup" style="display:none;">
+                <label>管理者パスワード:</label>
+                <input type="password" id="confirmPassword" class="form-input">
+            </div>
+            <div class="form-group" id="reasonGroup" style="display:none;">
+                <label>理由:</label>
+                <textarea id="actionReason" class="form-input" rows="3"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="hideModal()">キャンセル</button>
+            <button id="modalConfirm" class="btn btn-danger">実行</button>
+        </div>
+    </div>
+</div>
 
 <style>
-.admin-controls {
-    display: flex;
-    gap: 1rem;
+:root {
+    --primary-color: #6366f1;
+    --primary-hover: #4f46e5;
+    --secondary-color: #64748b;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8fafc;
+    --bg-tertiary: #f1f5f9;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --border-color: #e2e8f0;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --radius: 8px;
+}
+
+.admin-dashboard {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.admin-header {
     margin-bottom: 2rem;
-    flex-wrap: wrap;
 }
-.admin-controls button {
-    padding: 0.75rem 1.5rem;
-    background: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
+
+.admin-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, var(--primary-color), #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
-.admin-controls button:hover {
-    background: var(--primary-hover);
+
+.admin-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
 }
-.admin-controls button.danger {
-    background: #dc3545;
-}
-.admin-controls button.danger:hover {
-    background: #c82333;
-}
-#data-panel {
-    background: var(--bg-secondary);
+
+.stat-card {
+    background: var(--bg-primary);
     padding: 1.5rem;
-    border-radius: 8px;
+    border-radius: var(--radius);
     border: 1px solid var(--border-color);
-    min-height: 300px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
 }
-.data-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 1rem;
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
 }
-.data-table th, .data-table td {
-    padding: 0.75rem;
-    text-align: left;
+
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.admin-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+}
+
+.admin-section {
+    background: var(--bg-primary);
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
 }
-.data-table th {
-    background: var(--bg-primary);
-    font-weight: bold;
+
+.section-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
 }
-.data-table tr:hover {
-    background: var(--bg-hover);
-}
-.action-buttons {
+
+.section-actions {
     display: flex;
     gap: 0.5rem;
 }
-.btn-small {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.8rem;
-    border: none;
-    border-radius: 3px;
-    cursor: pointer;
+
+.search-box {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
 }
-.btn-edit { background: #ffc107; color: #212529; }
-.btn-delete { background: #dc3545; color: white; }
-.btn-disable { background: #6c757d; color: white; }
-.btn-enable { background: #28a745; color: white; }
+
+.search-box input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    transition: border-color 0.2s;
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.data-table-container {
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.data-table th {
+    background: var(--bg-tertiary);
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.data-table td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.data-table tr:hover {
+    background: var(--bg-secondary);
+}
+
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+}
+
+.btn {
+    padding: 0.625rem 1.25rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: var(--secondary-color);
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #475569;
+}
+
+.btn-success {
+    background: var(--success-color);
+    color: white;
+}
+
+.btn-warning {
+    background: var(--warning-color);
+    color: white;
+}
+
+.btn-danger {
+    background: var(--danger-color);
+    color: white;
+}
+
+.btn-info {
+    background: #0ea5e9;
+    color: white;
+}
+
+.btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+}
+
+.system-controls {
+    padding: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.control-group h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.monitoring-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    padding: 1.5rem;
+}
+
+.monitor-card {
+    background: var(--bg-secondary);
+    padding: 1.25rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.monitor-card h3 {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.metric {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.filter-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 1.5rem;
+}
+
+.tab-btn {
+    padding: 1rem 1.5rem;
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.tab-btn.active,
+.tab-btn:hover {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+.comments-container {
+    padding: 1.5rem;
+}
+
+.comments-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.comment-item {
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+    background: var(--bg-secondary);
+}
+
+.comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.comment-author {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.comment-time {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.comment-content {
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.comment-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
 .modal {
     display: none;
     position: fixed;
@@ -90,65 +494,145 @@
     top: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0,0,0,0.5);
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
 }
+
 .modal-content {
-    background-color: var(--bg-primary);
-    margin: 15% auto;
-    padding: 2rem;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    width: 80%;
+    background: var(--bg-primary);
+    margin: 5% auto;
+    padding: 0;
+    border-radius: var(--radius);
+    width: 90%;
     max-width: 500px;
+    box-shadow: var(--shadow-lg);
+    animation: modalSlideIn 0.3s ease;
 }
-.modal-buttons {
-    margin-top: 1rem;
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
     display: flex;
-    gap: 1rem;
-    justify-content: flex-end;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
 }
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 0;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
 .form-group {
     margin-bottom: 1rem;
 }
+
 .form-group label {
     display: block;
     margin-bottom: 0.5rem;
-    font-weight: bold;
-}
-.form-group input {
-    width: 100%;
-    padding: 0.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background: var(--bg-secondary);
+    font-weight: 500;
     color: var(--text-primary);
 }
-</style>
 
-<!-- 確認モーダル -->
-<div id="confirmModal" class="modal">
-    <div class="modal-content">
-        <h3 id="modalTitle">確認</h3>
-        <p id="modalMessage">本当に実行しますか？</p>
-        <div class="form-group" id="passwordGroup" style="display:none;">
-            <label>管理者パスワード:</label>
-            <input type="password" id="confirmPassword">
-        </div>
-        <div class="modal-buttons">
-            <button id="modalCancel">キャンセル</button>
-            <button id="modalConfirm" class="danger">実行</button>
-        </div>
-    </div>
-</div>
+.form-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    transition: border-color 0.2s;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.status-active {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-inactive {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+@media (max-width: 768px) {
+    .admin-dashboard {
+        padding: 1rem;
+    }
+    
+    .admin-title {
+        font-size: 2rem;
+    }
+    
+    .admin-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .system-controls {
+        grid-template-columns: 1fr;
+    }
+    
+    .monitoring-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+</style>
 
 <script>
 let currentAction = null;
 
-// モーダル操作
-function showModal(title, message, requirePassword = false, callback) {
+function showModal(title, message, requirePassword = false, requireReason = false, callback) {
     document.getElementById('modalTitle').textContent = title;
     document.getElementById('modalMessage').textContent = message;
     document.getElementById('passwordGroup').style.display = requirePassword ? 'block' : 'none';
+    document.getElementById('reasonGroup').style.display = requireReason ? 'block' : 'none';
     document.getElementById('confirmModal').style.display = 'block';
     currentAction = callback;
 }
@@ -156,59 +640,101 @@ function showModal(title, message, requirePassword = false, callback) {
 function hideModal() {
     document.getElementById('confirmModal').style.display = 'none';
     document.getElementById('confirmPassword').value = '';
+    document.getElementById('actionReason').value = '';
     currentAction = null;
 }
-
-document.getElementById('modalCancel').addEventListener('click', hideModal);
 
 document.getElementById('modalConfirm').addEventListener('click', () => {
     if (currentAction) {
         const password = document.getElementById('confirmPassword').value;
-        currentAction(password);
+        const reason = document.getElementById('actionReason').value;
+        currentAction(password, reason);
     }
 });
 
-// 全データ閲覧
-document.getElementById('view-all-data').addEventListener('click', async () => {
+async function loadAdminData() {
     try {
-        const response = await fetch('/api/v1/admin/all-data');
-        const data = await response.json();
-        displayAllData(data);
+        const [usersRes, statsRes] = await Promise.all([
+            fetch('/api/v1/admin/users'),
+            fetch('/api/v1/admin/stats')
+        ]);
+        
+        const users = await usersRes.json();
+        const stats = await statsRes.json();
+        
+        updateStats(stats);
+        displayUsers(users);
+        loadComments();
     } catch (error) {
-        console.error('データ取得に失敗:', error);
-        document.getElementById('data-panel').innerHTML = '<p>データ取得に失敗しました</p>';
+        console.error('データ読み込みエラー:', error);
     }
-});
+}
 
-// ユーザー管理
-document.getElementById('view-users').addEventListener('click', async () => {
-    try {
-        const response = await fetch('/api/v1/admin/users');
-        const data = await response.json();
-        displayUsers(data);
-    } catch (error) {
-        console.error('ユーザー取得に失敗:', error);
-        document.getElementById('data-panel').innerHTML = '<p>ユーザー取得に失敗しました</p>';
+function updateStats(stats) {
+    document.getElementById('userCount').textContent = stats.userCount || 0;
+    document.getElementById('individualCount').textContent = stats.individualCount || 0;
+    document.getElementById('dataCount').textContent = stats.dataCount || 0;
+    document.getElementById('activeUsers').textContent = stats.activeUsers || 0;
+    document.getElementById('todayPredictions').textContent = stats.todayPredictions || 0;
+    document.getElementById('errorCount').textContent = stats.errorCount || 0;
+    document.getElementById('systemLoad').textContent = stats.systemLoad || '低';
+}
+
+function displayUsers(users) {
+    const tbody = document.getElementById('usersTableBody');
+    if (!users.users || users.users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">ユーザーがいません</td></tr>';
+        return;
     }
-});
+    
+    tbody.innerHTML = users.users.map(user => `
+        <tr>
+            <td>${user.id}</td>
+            <td>${user.username}</td>
+            <td><span class="status-badge ${user.is_active ? 'status-active' : 'status-inactive'}">${user.is_active ? '有効' : '無効'}</span></td>
+            <td>${user.individual_count || 0}</td>
+            <td>${user.last_active || 'N/A'}</td>
+            <td>
+                <button class="btn btn-sm ${user.is_active ? 'btn-warning' : 'btn-success'}" onclick="toggleUser(${user.id}, ${!user.is_active})">
+                    ${user.is_active ? '無効化' : '有効化'}
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="deleteUser(${user.id})">削除</button>
+            </td>
+        </tr>
+    `).join('');
+}
 
-// 全データ削除
-document.getElementById('delete-all-data').addEventListener('click', () => {
+function filterUsers() {
+    const searchTerm = document.getElementById('userSearch').value.toLowerCase();
+    const rows = document.querySelectorAll('#usersTableBody tr');
+    
+    rows.forEach(row => {
+        const username = row.cells[1].textContent.toLowerCase();
+        row.style.display = username.includes(searchTerm) ? '' : 'none';
+    });
+}
+
+function refreshUsers() {
+    loadAdminData();
+}
+
+function showDeleteAllModal() {
     showModal(
         '全データ削除',
-        '管理者以外の全データを削除します。本当に実行しますか？',
+        '管理者以外の全データを削除します。この操作は元に戻せません。',
         true,
-        async (password) => {
+        true,
+        async (password, reason) => {
             try {
                 const response = await fetch('/api/v1/admin/delete-all-data', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password })
+                    body: JSON.stringify({ password, reason })
                 });
                 
                 if (response.ok) {
                     alert('全データを削除しました');
-                    document.getElementById('data-panel').innerHTML = '<p>操作を選択してください</p>';
+                    loadAdminData();
                 } else {
                     const error = await response.json();
                     alert('削除に失敗しました: ' + (error.error || '不明なエラー'));
@@ -220,134 +746,119 @@ document.getElementById('delete-all-data').addEventListener('click', () => {
             hideModal();
         }
     );
-});
-
-// データ表示関数
-function displayAllData(data) {
-    const panel = document.getElementById('data-panel');
-    let html = '<h4>全データ</h4>';
-    
-    if (data.users && data.users.length > 0) {
-        html += '<h5>ユーザー</h5>';
-        html += '<table class="data-table">';
-        html += '<tr><th>ID</th><th>ユーザー名</th><th>個体数</th><th>アクション</th></tr>';
-        data.users.forEach(user => {
-            html += `<tr>
-                <td>${user.id}</td>
-                <td>${user.username}</td>
-                <td>${user.individual_count}</td>
-                <td class="action-buttons">
-                    <button class="btn-small btn-delete" onclick="deleteUser(${user.id})">削除</button>
-                    <button class="btn-small ${user.is_active ? 'btn-disable' : 'btn-enable'}" onclick="toggleUser(${user.id}, ${!user.is_active})">
-                        ${user.is_active ? '無効化' : '有効化'}
-                    </button>
-                </td>
-            </tr>`;
-        });
-        html += '</table>';
-    }
-    
-    if (data.individuals && data.individuals.length > 0) {
-        html += '<h5>個体</h5>';
-        html += '<table class="data-table">';
-        html += '<tr><th>ID</th><th>UID</th><th>所有者</th><th>記録数</th><th>アクション</th></tr>';
-        data.individuals.forEach(ind => {
-            html += `<tr>
-                <td>${ind.id}</td>
-                <td>${ind.uid}</td>
-                <td>${ind.owner_username}</td>
-                <td>${ind.input_count}</td>
-                <td class="action-buttons">
-                    <button class="btn-small btn-delete" onclick="deleteIndividual(${ind.id})">削除</button>
-                </td>
-            </tr>`;
-        });
-        html += '</table>';
-    }
-    
-    panel.innerHTML = html;
 }
 
-function displayUsers(data) {
-    const panel = document.getElementById('data-panel');
-    let html = '<h4>ユーザー管理</h4>';
-    
-    if (data.users && data.users.length > 0) {
-        html += '<table class="data-table">';
-        html += '<tr><th>ID</th><th>ユーザー名</th><th>メール</th><th>状態</th><th>個体数</th><th>アクション</th></tr>';
-        data.users.forEach(user => {
-            html += `<tr>
-                <td>${user.id}</td>
-                <td>${user.username}</td>
-                <td>${user.email || 'N/A'}</td>
-                <td>${user.is_active ? '有効' : '無効'}</td>
-                <td>${user.individual_count}</td>
-                <td class="action-buttons">
-                    <button class="btn-small ${user.is_active ? 'btn-disable' : 'btn-enable'}" onclick="toggleUser(${user.id}, ${!user.is_active})">
-                        ${user.is_active ? '無効化' : '有効化'}
-                    </button>
-                    <button class="btn-small btn-delete" onclick="deleteUser(${user.id})">削除</button>
-                </td>
-            </tr>`;
-        });
-        html += '</table>';
-    } else {
-        html += '<p>ユーザーがいません</p>';
-    }
-    
-    panel.innerHTML = html;
-}
-
-// アクション関数
-async function deleteUser(userId) {
+function showBackupModal() {
     showModal(
-        'ユーザー削除',
-        'このユーザーと関連データを削除します。本当に実行しますか？',
+        'バックアップ作成',
+        'システムの完全なバックアップを作成します。',
+        false,
         false,
         async () => {
             try {
-                const response = await fetch(`/api/v1/admin/users/${userId}`, {
-                    method: 'DELETE'
+                const response = await fetch('/api/v1/admin/backup', {
+                    method: 'POST'
                 });
                 
                 if (response.ok) {
-                    alert('ユーザーを削除しました');
-                    document.getElementById('view-users').click();
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `backup_${new Date().toISOString().split('T')[0]}.json`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    alert('バックアップを作成しました');
                 } else {
-                    alert('削除に失敗しました');
+                    alert('バックアップ作成に失敗しました');
                 }
             } catch (error) {
-                console.error('削除に失敗:', error);
-                alert('削除に失敗しました');
+                console.error('バックアップ作成エラー:', error);
+                alert('バックアップ作成に失敗しました');
             }
             hideModal();
         }
     );
 }
 
-async function deleteIndividual(indId) {
+async function exportData() {
+    try {
+        const response = await fetch('/api/v1/admin/export');
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `export_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            alert('データをエクスポートしました');
+        } else {
+            alert('エクスポートに失敗しました');
+        }
+    } catch (error) {
+        console.error('エクスポートエラー:', error);
+        alert('エクスポートに失敗しました');
+    }
+}
+
+function showSystemStatus() {
     showModal(
-        '個体削除',
-        'この個体と関連データを削除します。本当に実行しますか？',
+        'システム状態',
+        'システム状態の詳細情報を取得中...',
+        false,
         false,
         async () => {
             try {
-                const response = await fetch(`/api/v1/admin/individuals/${indId}`, {
-                    method: 'DELETE'
-                });
+                const response = await fetch('/api/v1/admin/system-status');
+                const status = await response.json();
                 
-                if (response.ok) {
-                    alert('個体を削除しました');
-                    document.getElementById('view-all-data').click();
-                } else {
-                    alert('削除に失敗しました');
+                let statusHtml = '<div style="text-align: left;">';
+                for (const [key, value] of Object.entries(status)) {
+                    statusHtml += `<p><strong>${key}:</strong> ${value}</p>`;
                 }
+                statusHtml += '</div>';
+                
+                document.getElementById('modalMessage').innerHTML = statusHtml;
             } catch (error) {
-                console.error('削除に失敗:', error);
-                alert('削除に失敗しました');
+                document.getElementById('modalMessage').textContent = '状態取得に失敗しました';
             }
-            hideModal();
         }
+    );
+}
+
+function showLogs() {
+    showModal(
+        'システムログ',
+        '最近のシステムログを表示します。',
+        false,
+        false,
+        async () => {
+            try {
+                const response = await fetch('/api/v1/admin/logs');
+                const logs = await response.json();
+                
+                let logsHtml = '<div style="text-align: left; font-family: monospace; font-size: 0.8rem; max-height: 300px; overflow-y: auto;">';
+                logs.logs.forEach(log => {
+                    logsHtml += `<div style="margin-bottom: 0.5rem; padding: 0.5rem; background: #f8f9fa; border-radius: 4px;">[${log.timestamp}] ${log.level}: ${log.message}</div>`;
+                });
+                logsHtml += '</div>';
+                
+                document.getElementById('modalMessage').innerHTML = logsHtml;
+            } catch (error) {
+                document.getElementById('modalMessage').textContent = 'ログ取得に失敗しました';
+            }
+        }
+    );
+}
+
+function showSettings() {
+    showModal(
+        'システム設定',
+        'システム設定画面は開発中です。',
+        false,
+        false,
+        () => {}
     );
 }
 
@@ -357,17 +868,18 @@ async function toggleUser(userId, enable) {
         `ユーザー${action}`,
         `ユーザーを${action}します。本当に実行しますか？`,
         false,
-        async () => {
+        true,
+        async (password, reason) => {
             try {
                 const response = await fetch(`/api/v1/admin/users/${userId}/toggle`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ is_active: enable })
+                    body: JSON.stringify({ is_active: enable, reason })
                 });
                 
                 if (response.ok) {
                     alert(`ユーザーを${action}しました`);
-                    document.getElementById('view-users').click();
+                    refreshUsers();
                 } else {
                     alert(`${action}に失敗しました`);
                 }
@@ -379,5 +891,116 @@ async function toggleUser(userId, enable) {
         }
     );
 }
+
+async function deleteUser(userId) {
+    showModal(
+        'ユーザー削除',
+        'このユーザーと関連データを削除します。この操作は元に戻せません。',
+        true,
+        true,
+        async (password, reason) => {
+            try {
+                const response = await fetch(`/api/v1/admin/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, reason })
+                });
+                
+                if (response.ok) {
+                    alert('ユーザーを削除しました');
+                    refreshUsers();
+                } else {
+                    alert('削除に失敗しました');
+                }
+            } catch (error) {
+                console.error('削除に失敗:', error);
+                alert('削除に失敗しました');
+            }
+            hideModal();
+        }
+    );
+}
+
+function filterComments(type) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    loadComments(type);
+}
+
+async function loadComments(filter = 'all') {
+    try {
+        const response = await fetch(`/api/v1/admin/comments?filter=${filter}`);
+        const data = await response.json();
+        
+        const container = document.getElementById('commentsList');
+        if (!data.comments || data.comments.length === 0) {
+            container.innerHTML = '<div class="loading">コメントがありません</div>';
+            return;
+        }
+        
+        container.innerHTML = data.comments.map(comment => `
+            <div class="comment-item">
+                <div class="comment-header">
+                    <span class="comment-author">${comment.author}</span>
+                    <span class="comment-time">${comment.timestamp}</span>
+                </div>
+                <div class="comment-content">${comment.content}</div>
+                <div class="comment-actions">
+                    <button class="btn btn-sm btn-warning" onclick="editComment(${comment.id})">編集</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteComment(${comment.id})">削除</button>
+                    ${comment.flagged ? '<button class="btn btn-sm btn-success" onclick="unflagComment(${comment.id})">報告解除</button>' : ''}
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('コメント読み込みエラー:', error);
+        document.getElementById('commentsList').innerHTML = '<div class="loading">コメント読み込みに失敗しました</div>';
+    }
+}
+
+async function editComment(commentId) {
+    const newContent = prompt('新しいコメント内容:');
+    if (newContent) {
+        try {
+            const response = await fetch(`/api/v1/admin/comments/${commentId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: newContent })
+            });
+            
+            if (response.ok) {
+                alert('コメントを更新しました');
+                loadComments();
+            } else {
+                alert('更新に失敗しました');
+            }
+        } catch (error) {
+            console.error('更新エラー:', error);
+            alert('更新に失敗しました');
+        }
+    }
+}
+
+async function deleteComment(commentId) {
+    if (confirm('このコメントを削除しますか？')) {
+        try {
+            const response = await fetch(`/api/v1/admin/comments/${commentId}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                alert('コメントを削除しました');
+                loadComments();
+            } else {
+                alert('削除に失敗しました');
+            }
+        } catch (error) {
+            console.error('削除エラー:', error);
+            alert('削除に失敗しました');
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadAdminData);
 </script>
 {% endblock %}
