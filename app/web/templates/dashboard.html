@@ -54,6 +54,38 @@
                 <input type="number" id="predict-toilet-count" min="0" max="20" value="0">
             </div>
             <div class="form-row">
+                <label>トイレ詳細</label>
+                <div class="toilet-details">
+                    <div class="toilet-item" id="toilet-template" style="display:none;">
+                        <input type="time" class="toilet-time" placeholder="時間">
+                        <input type="number" class="toilet-duration" placeholder="持続時間(分)" min="0" max="60">
+                        <button type="button" class="toilet-remove" onclick="removeToiletItem(this)">削除</button>
+                    </div>
+                    <button type="button" class="toilet-add" onclick="addToiletItem()">+ トイレを追加</button>
+                </div>
+            </div>
+            <div class="form-row">
+                <label>薬剤服用</label>
+                <div class="meds-details">
+                    <div class="meds-item" id="med-template" style="display:none;">
+                        <select class="med-category" onchange="updateMedOptions(this)">
+                            <option value="">カテゴリを選択</option>
+                            <option value="生理のときにしかほぼ使わない薬">生理のときにしかほぼ使わない薬</option>
+                            <option value="日用でも生理でも使う薬">日用でも生理でも使う薬</option>
+                            <option value="花粉症の薬">花粉症の薬</option>
+                            <option value="その他の薬">その他の薬</option>
+                        </select>
+                        <select class="med-name" placeholder="薬剤名">
+                            <option value="">薬剤を選択</option>
+                        </select>
+                        <input type="time" class="med-time" placeholder="服用時間">
+                        <input type="text" class="med-note" placeholder="メモ">
+                        <button type="button" class="med-remove" onclick="removeMedItem(this)">削除</button>
+                    </div>
+                    <button type="button" class="med-add" onclick="addMedItem()">+ 薬剤を追加</button>
+                </div>
+            </div>
+            <div class="form-row">
                 <label>メモ</label>
                 <input type="text" id="predict-notes" placeholder="任意">
             </div>
@@ -123,6 +155,85 @@
 .accuracy-high { color: #28a745; }
 .accuracy-medium { color: #ffc107; }
 .accuracy-low { color: #dc3545; }
+
+.toilet-details, .meds-details {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    margin-bottom: 1rem;
+}
+
+.toilet-item, .meds-item {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    background: var(--bg-primary);
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.toilet-time, .med-time {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.toilet-duration, .med-note {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    flex: 1;
+}
+
+.med-category, .med-name {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    flex: 1;
+}
+
+.toilet-remove, .med-remove {
+    padding: 0.5rem 1rem;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.toilet-add, .med-add {
+    padding: 0.75rem 1.5rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+    width: 100%;
+}
+
+.toilet-add:hover, .med-add:hover {
+    background: var(--accent);
+    opacity: 0.9;
+}
+
+.toilet-remove:hover, .med-remove:hover {
+    background: #c82333;
+}
 </style>
 
 <section class="section evaluation-section">
@@ -147,6 +258,251 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 let currentUid = null;
+let medsData = {};
+let toiletItems = [];
+let medItems = [];
+
+// 薬剤データを読み込む
+async function loadMedsData() {
+    try {
+        const response = await fetch('/data/meds_list.json');
+        medsData = await response.json();
+        console.log('薬剤データ読み込み完了:', medsData);
+    } catch (error) {
+        console.error('薬剤データ読み込みエラー:', error);
+        // フォールバックデータ
+        medsData = {
+            "生理のときにしかほぼ使わない薬": [
+                "ロキソプロフェンナトリウム（ロキソニン）",
+                "イブプロフェン（ブルフェン）",
+                "ジクロフェナクナトリウム（ボルタレン）",
+                "ナプロキセン（ナイキサン）",
+                "メフェナム酸（ポンタール）",
+                "セレコキシブ（セレコックス）",
+                "トラネキサム酸（トランサミン）",
+                "ブチルスコポラミン臭化物（ブスコパン）",
+                "当帰芍薬散（トウキシャクヤクサン）",
+                "桂枝茯苓丸（ケイシブクリョウガン）",
+                "加味逍遙散（カミショウヨウサン）",
+                "桃核承気湯（トウカクジョウキトウ）",
+                "温経湯（ウンケイトウ）",
+                "芍薬甘草湯（シャクヤクカンゾウトウ）",
+                "エトドラク（ハイペン）",
+                "ジクロフェナクナトリウム坐薬（ボルタレン坐薬）",
+                "インドメタシン（インダシン）",
+                "ロルノキシカム（ロルカム）",
+                "芎帰調血飲（キュウキチョウケツイン）",
+                "女神散（ニョシンサン）"
+            ],
+            "日用でも生理でも使う薬": [
+                "アセトアミノフェン（カロナール / タイレノール）",
+                "ファボワール（低用量ピル）",
+                "マーベロン（低用量ピル）",
+                "トリキュラー（低用量ピル）",
+                "アンジュ（低用量ピル）",
+                "ラベルフィーユ（低用量ピル）",
+                "ジェミーナ（LEP製剤）",
+                "ルナベル（LEP製剤）",
+                "フリウェル（LEP製剤）",
+                "ヤーズ（LEP製剤）",
+                "ヤーズフレックス（LEP製剤）",
+                "ドロエチ（LEP製剤）",
+                "ジエノゲスト（黄体ホルモン剤）",
+                "ファモチジン（ガスター）",
+                "レバミピド（ムコスタ）",
+                "テプレノン（セルベックス）",
+                "エソメプラゾール（ネキシウム）",
+                "ランソプラゾール（タケプロン）",
+                "ラベプラゾール（パリエット）",
+                "酸化マグネシウム",
+                "葛根湯（カッコントウ）",
+                "五苓散（ゴレイサン）",
+                "補中益気湯（ホチュウエッキトウ）",
+                "半夏厚朴湯（ハンゲコウボクトウ）",
+                "エチニルエストラジオール／ノルエチステロン（シンフェーズ）",
+                "ドロスピレノン／エチニルエストラジオール（ヤスミン）",
+                "ミソプロストール（サイトテック）",
+                "レバミピド点眼（ムコスタ点眼）",
+                "大建中湯（ダイケンチュウトウ）",
+                "六君子湯（リックンシトウ）"
+            ],
+            "花粉症の薬": [
+                "フェキソフェナジン（アレグラ）",
+                "オロパタジン（アレロック）",
+                "セチリジン（ジルテック）",
+                "レボセチリジン（ザイザル）",
+                "ロラタジン（クラリチン）",
+                "デスロラタジン（デザレックス）",
+                "ビラスチン（ビラノア）",
+                "ルパタジン（ルパフィン）",
+                "エピナスチン（アレジオン）",
+                "エボカスチン（エバステル）",
+                "フルチカゾンフランカルボン酸エステル（アラミスト点鼻）",
+                "モメタゾンフランカルボン酸エステル（ナゾネックス点鼻）",
+                "フルチカゾンプロピオン酸エステル（フルナーゼ点鼻）",
+                "オロパタジン（パタノール点眼）",
+                "レボカバスチン（リボスチン点眼）",
+                "ケトチフェン（ザジテン点眼）",
+                "クロモグリク酸ナトリウム（インタール点眼）",
+                "アゼラスチン（アゼプチン）",
+                "ベクロメタゾン（ベコナーゼ点鼻）",
+                "シプロヘプタジン（ペリアクチン）",
+                "オキサトミド（セルテクト）",
+                "トラニラスト（リザベン）",
+                "ケトチフェン内服（ザジテン内服）"
+            ],
+            "その他の薬": [
+                "バファリンA",
+                "バファリンルナi",
+                "イブA錠",
+                "イブクイック頭痛薬",
+                "ロキソニンS",
+                "ロキソニンSプレミアム",
+                "ノーシン",
+                "セデス・ハイ",
+                "リングルアイビー",
+                "アモキシシリン（サワシリン）",
+                "セフカペンピボキシル（フロモックス）",
+                "レボフロキサシン（クラビット）",
+                "アジスロマイシン（ジスロマック）",
+                "クラリスロマイシン（クラリス）",
+                "セフジニル（セフゾン）",
+                "ゾルピデム（マイスリー）",
+                "エスゾピクロン（ルネスタ）",
+                "スボレキサント（ベルソムラ）",
+                "レンボレキサント（デエビゴ）",
+                "トリアゾラム（ハルシオン）",
+                "ブロチゾラム（レンドルミン）",
+                "エチゾラム（デパス）",
+                "ロラゼパム（ワイパックス）",
+                "アルプラゾラム（ソラナックス）",
+                "クエン酸第一鉄ナトリウム（フェロミア）",
+                "溶性ピロリン酸第二鉄（インクレミン）",
+                "フマル酸第一鉄（フェルム）",
+                "ビタミンB群サプリメント",
+                "ビタミンCサプリメント",
+                "鉄分サプリメント",
+                "葉酸サプリメント",
+                "アセチルサリチル酸（アスピリン）",
+                "サリチルアミド配合薬（ナロンエースなど）",
+                "スクラルファート（アルサルミン）",
+                "ラフチジン（プロテカジン）",
+                "セフポドキシム（バナン）",
+                "ミノサイクリン（ミノマイシン）",
+                "メトロニダゾール（フラジール）",
+                "タンドスピロン（セディール）",
+                "ロフラゼプ酸（メイラックス）",
+                "クアゼパム（ドラール）",
+                "ビタミンDサプリ",
+                "マグネシウムサプリ",
+                "亜鉛サプリ",
+                "胃薬（一般カテゴリ）",
+                "風邪薬（一般カテゴリ）",
+                "便秘薬（一般カテゴリ）"
+            ]
+        };
+    }
+}
+
+// トイレ項目を追加
+function addToiletItem() {
+    const template = document.getElementById('toilet-template');
+    const newItem = template.cloneNode(true);
+    newItem.style.display = 'flex';
+    newItem.id = 'toilet-' + Date.now();
+    
+    const container = template.parentNode;
+    const addButton = container.querySelector('.toilet-add');
+    container.insertBefore(newItem, addButton);
+    
+    toiletItems.push(newItem);
+}
+
+// トイレ項目を削除
+function removeToiletItem(button) {
+    const item = button.parentElement;
+    item.remove();
+    toiletItems = toiletItems.filter(i => i !== item);
+}
+
+// 薬剤項目を追加
+function addMedItem() {
+    const template = document.getElementById('med-template');
+    const newItem = template.cloneNode(true);
+    newItem.style.display = 'flex';
+    newItem.id = 'med-' + Date.now();
+    
+    const container = template.parentNode;
+    const addButton = container.querySelector('.med-add');
+    container.insertBefore(newItem, addButton);
+    
+    medItems.push(newItem);
+}
+
+// 薬剤項目を削除
+function removeMedItem(button) {
+    const item = button.parentElement;
+    item.remove();
+    medItems = medItems.filter(i => i !== item);
+}
+
+// 薬剤カテゴリが変更されたときの処理
+function updateMedOptions(select) {
+    const category = select.value;
+    const nameSelect = select.parentElement.querySelector('.med-name');
+    
+    nameSelect.innerHTML = '<option value="">薬剤を選択</option>';
+    
+    if (category && medsData[category]) {
+        medsData[category].forEach(med => {
+            const option = document.createElement('option');
+            option.value = med;
+            option.textContent = med;
+            nameSelect.appendChild(option);
+        });
+    }
+}
+
+// トイレデータを収集
+function collectToiletData() {
+    const toiletData = [];
+    toiletItems.forEach(item => {
+        if (item.style.display !== 'none') {
+            const time = item.querySelector('.toilet-time').value;
+            const duration = parseInt(item.querySelector('.toilet-duration').value) || 0;
+            if (time && duration > 0) {
+                toiletData.push({
+                    time: time,
+                    duration_min: duration
+                });
+            }
+        }
+    });
+    return toiletData;
+}
+
+// 薬剤データを収集
+function collectMedsData() {
+    const medsData = [];
+    medItems.forEach(item => {
+        if (item.style.display !== 'none') {
+            const category = item.querySelector('.med-category').value;
+            const name = item.querySelector('.med-name').value;
+            const time = item.querySelector('.med-time').value;
+            const note = item.querySelector('.med-note').value;
+            
+            if (name && time) {
+                medsData.push({
+                    name: name,
+                    category: category,
+                    time: time,
+                    note: note
+                });
+            }
+        }
+    });
+    return medsData;
+}
 let predictionChart = null;
 
 function parseYMD(s) {
@@ -269,6 +625,11 @@ async function loadHistory(uid) {
     });
 }
 
+document.addEventListener("DOMContentLoaded", async () => {
+    await loadMedsData();
+    loadIndividuals();
+});
+
 document.getElementById("add-individual-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const uid = document.getElementById("new-uid").value.trim();
@@ -368,7 +729,8 @@ document.getElementById("register-btn").addEventListener("click", async () => {
         headache: Number(document.getElementById("predict-headache").value || 0),
         tone_pressure: Number(document.getElementById("predict-tone").value || 0),
         cough: Number(document.getElementById("predict-cough").value || 0),
-        toilet_times: Array.from({ length: Number(document.getElementById("predict-toilet-count").value || 0) }).map(() => ({ time: "07:00", duration_min: 3 })),
+        toilet_times: collectToiletData(),
+        meds: collectMedsData(),
         notes: document.getElementById("predict-notes").value || "",
     };
     const res = await fetch("/api/v1/register/" + encodeURIComponent(uid), {
@@ -380,7 +742,7 @@ document.getElementById("register-btn").addEventListener("click", async () => {
     if (!res.ok) {
         try {
             const err = await res.json();
-            out.innerHTML = "登録に失敗: " + (err.error || res.statusText);
+            out.innerHTML = "登録に失敗しました: " + (err.error || res.statusText);
         } catch (_) {
             out.innerHTML = "登録に失敗しました";
         }
@@ -388,6 +750,7 @@ document.getElementById("register-btn").addEventListener("click", async () => {
     }
     const data = await res.json();
     out.innerHTML = "<strong>" + data.message + "</strong> " + (data.entry && data.entry.date ? data.entry.date + " を登録しました。" : "");
+    loadIndividuals();
     loadHistory(uid);
 });
 

@@ -1,5 +1,57 @@
 {% extends "layout.html" %}
 {% block content %}
+<style>
+.algorithm-content {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.algorithm-content h3 {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.algorithm-section {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.algorithm-section h4 {
+    margin: 0 0 0.75rem 0;
+    color: var(--accent);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.code-block {
+    background: #1a1a1a;
+    color: #f8f8f2;
+    padding: 1rem;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    overflow-x: auto;
+    border: 1px solid #333;
+}
+
+.algorithm-footer {
+    text-align: center;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+</style>
 <div class="auth-page">
     <div class="auth-hero">
         <h1 class="auth-title">RANSHI_KUN</h1>
@@ -11,6 +63,7 @@
         <div class="auth-tabs">
             <button type="button" class="auth-tab active" data-tab="login">ログイン</button>
             <button type="button" class="auth-tab" data-tab="register">新規登録</button>
+            <button type="button" class="auth-tab" data-tab="algorithm">アルゴリズム</button>
         </div>
 
         <div id="login-panel" class="auth-panel active">
@@ -40,6 +93,165 @@
                 <button type="submit" class="auth-submit">新規登録</button>
             </form>
             <div id="register-error" class="auth-error"></div>
+        </div>
+
+        <div id="algorithm-panel" class="auth-panel">
+            <div class="algorithm-content">
+                <h3>計算ロジックと機械学習アーキテクチャ</h3>
+                
+                <div class="algorithm-section">
+                    <h4>1. 基本スコア計算</h4>
+                    <pre class="code-block">raw_score = (w_gym * gym + w_absent * absent + w_pain * pain + 
+             w_headache * headache + w_tone * tone) * time_factor
+
+cough_multiplier = cough_max - (cough_max - cough_min) * (cough / 4.0)
+raw_score *= cough_multiplier</pre>
+                </div>
+
+                <div class="algorithm-section">
+                    <h4>2. トイレ時間分析</h4>
+                    <pre class="code-block">toilet_times = cluster_time_entries(toilet_times, window_minutes=60)
+avg_duration = calculate_average_duration(toilet_times)
+historical_avg = get_historical_average(uid, last_20_entries)
+target_duration = historical_avg + 5.0
+
+duration_score = 1.0 - abs(avg_duration - target_duration) / 15.0
+toilet_score = (count / 10.0) * 0.6 + duration_score * 0.4
+raw_score += toilet_score * 2.0</pre>
+                </div>
+
+                <div class="algorithm-section">
+                    <h4>3. 薬剤カテゴリ重み付け</h4>
+                    <pre class="code-block">group1_target = score_shift - log(1/p1_target - 1)
+group2_target = score_shift - log(1/p2_target - 1)
+
+if group1_meds_taken and raw_score < group1_target:
+    raw_score += (group1_target - raw_score)
+elif group2_meds_taken and raw_score < group2_target:
+    raw_score += (group2_target - raw_score)
+
+if group3_meds_taken:
+    raw_score *= group3_multiplier
+if group4_meds_taken:
+    raw_score += group4_add</pre>
+                </div>
+
+                <div class="algorithm-section">
+                    <h4>4. 機械学習モデル</h4>
+                    <pre class="code-block">特徴量抽出:
+- トイレ回数、平均時間、持続時間
+- 痛み、頭痛、緊張度
+- 体育、出欠、咳の頻度
+- 薬剤カテゴリ、服用時間
+
+モデル:
+- LightGBM Classifier (主要)
+- RandomForest (バックアップ)
+- Self-Training Classifier (半教師あり学習)
+
+学習:
+- 擬似ラベル生成 (HMM + 変化点検出)
+- 適応的学習率
+- K分割交差検証
+- ハイパーパラメータ最適化 (scipy.optimize)</pre>
+                </div>
+
+                <div class="algorithm-section">
+                    <h4>5. Provisional Periods (暫定期間)</h4>
+                    <pre class="code-block">if probability >= LABEL_THRESHOLD:
+    create_provisional_period(start_date, duration=5天)
+
+confidence = provisional_confidence(new_score, previous_score)
+alpha = base_alpha + 0.2 * confidence
+new_cycle = (1 - alpha) * old_cycle + alpha * (cycle + shift)
+
+if confidence > 0.6:
+    update_last_high_prob_date(observed_date)</pre>
+                </div>
+
+                <div class="algorithm-section">
+                    <h4>6. 予測分布計算</h4>
+                    <pre class="code-block">base_sigma = max(1.0, cycle_days / 5.0)
+reduction_factor = min(1.0, input_count / MIN_STRONG_UPDATE_DAYS)
+sigma = max(1.0, base_sigma * (1.0 - 0.7 * reduction_factor))
+
+evidence_strength = min(0.95, 0.15 + 0.85 * reduction_factor)
+prior = 0.02
+combined = prior * (1.0 - evidence_strength) + model_prediction * evidence_strength</pre>
+                </div>
+
+                <div class="algorithm-section">
+                    <h4>8. 開発者による実装解説</h4>
+                    <pre class="code-block">【機械学習の実装方法】
+
+1. LightGBM Classifier実装:
+   - 特徴量: 12次元（トイレ、痛み、薬剤など）
+   - 学習データ: 擬似ラベル（HMM+変化点検出）
+   - ハイパーパラメータ: n_estimators=200, learning_rate=0.05
+   - 目的関数: binary_crossentropy
+   - 評価: K分割交差検証
+
+2. Self-Training Classifier実装:
+   - ベースモデル: LightGBMまたはRandomForest
+   - しきい値: threshold=0.9
+   - 未ラベルデータに擬似ラベルを付与
+   - 信頼度スコアで重み付け
+   - 半教師あり学習で精度向上
+
+3. 特徴量エンジニアリング:
+   - 時系列データの正規化（Z-score）
+   - ウィンドウ特徴抽出（21日間）
+   - 薬剤服用のベクトル化
+   - 時間重み付け（夜間1.45倍）
+
+4. パラメータ最適化:
+   - scipy.optimize.minimize使用
+   - 目的関数: log_loss
+   - 最適化手法: BFGS
+   - 12個のパラメータを同時最適化
+
+5. Provisional Periods実装:
+   - 高確率日検出で暫定期間作成
+   - 信頼度計算: 1/(1+exp(-α*Δscore))
+   - 適応的学習率: base_α + 0.2*confidence
+   - 周期予測の更新ロジック
+
+【計算法の詳細】
+
+1. トイレ時間クラスタリング:
+   - 時間ウィンドウ: 60分
+   - 平均時間で代表値を計算
+   - 持続時間の合算で総時間を算出
+
+2. 薬剤カテゴリ重み付け:
+   - グループ1（生理専用薬）: 99%確率目標
+   - グループ2（日常薬）: 60%確率目標
+   - グループ3（花粉症薬）: 乗算0.5倍
+   - グループ4（その他）: 加算0.1
+
+3. 予測分布計算:
+   - 正規分布のσを入力数で動的調整
+   - 証拠強度を0.15〜0.95で段階的に向上
+   - 事前確率0.02と事後分布の融合
+
+4. 咳の影響計算:
+   - 咳レベル0〜4で乗数を線形補間
+   - max_multiplier=1.2, min_multiplier=0.2
+   - 咳が多いほど予測確率を抑制
+
+【実装上の工夫】
+
+- データ不足時のフォールバック処理
+- 異常値検出と除外ロジック
+- リアルタイムでのモデル再学習
+- 個人別パラメータの保存と読み込み
+- 分散分析による信頼区間計算</pre>
+                </div>
+
+                <div class="algorithm-footer">
+                    <button onclick="exportAlgorithm()" class="auth-submit">アルゴリズムをtxtで出力</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -139,6 +351,19 @@ document.addEventListener("DOMContentLoaded", function() {
     if (window.location.hash === "#register") {
         var registerTab = document.querySelector(".auth-tab[data-tab='register']");
         if (registerTab) registerTab.click();
+    }
+    
+    function exportAlgorithm() {
+        const algorithmText = document.querySelector('.algorithm-content').innerText;
+        const blob = new Blob([algorithmText], { type: 'text/plain;charset=utf-8' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'ranshi_kun_algorithm.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
     }
 });
 </script>
