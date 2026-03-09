@@ -14,8 +14,8 @@ timeout = 120
 keepalive = 2
 
 # Logging
-accesslog = os.environ.get('GUNICORN_ACCESS_LOG', '/var/log/gunicorn/access.log')
-errorlog = os.environ.get('GUNICORN_ERROR_LOG', '/var/log/gunicorn/error.log')
+accesslog = '-'
+errorlog = '-'
 loglevel = os.environ.get('GUNICORN_LOG_LEVEL', 'info')
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
 
@@ -24,9 +24,9 @@ proc_name = 'ranshi_kun'
 
 # Server mechanics
 daemon = False
-pidfile = '/var/run/gunicorn/ranshi_kun.pid'
-user = os.environ.get('GUNICORN_USER', 'www-data')
-group = os.environ.get('GUNICORN_GROUP', 'www-data')
+pidfile = '/tmp/gunicorn.pid'
+user = os.environ.get('GUNICORN_USER', 'app')
+group = os.environ.get('GUNICORN_GROUP', 'app')
 tmp_upload_dir = None
 
 # SSL (if needed)
@@ -48,4 +48,4 @@ limit_request_fields = 100
 limit_request_field_size = 8190
 
 # Performance
-worker_tmp_dir = '/dev/shm'
+worker_tmp_dir = '/tmp'
