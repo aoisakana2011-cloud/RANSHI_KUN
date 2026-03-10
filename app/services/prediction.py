@@ -298,7 +298,7 @@ def add_entry_and_predict(uid: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def monte_carlo_predict(uid: str, payload: Dict[str, Any], simulations: int = 1000) -> Dict[str, Any]:
+def monte_carlo_predict(uid: str, payload: Dict[str, Any], simulations: int = 10000) -> Dict[str, Any]:
     """モンテカルロ法による予測"""
     # 通常予測も実行
     entry, udata = _compute_and_save_entry(uid, payload)

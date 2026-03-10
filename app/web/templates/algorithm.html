@@ -719,7 +719,7 @@ Optunaフレームワーク      # TPEアルゴリズム</pre>
                 <div class="card-icon">TARGET</div>
                 <div>
                     <h2 class="card-title">予測分布計算</h2>
-                    <p class="card-subtitle">動的な正規分布と証拠融合</p>
+                    <p class="card-subtitle">動的な正規分布</p>
                 </div>
             </div>
 
@@ -749,8 +749,8 @@ Optunaフレームワーク      # TPEアルゴリズム</pre>
                     <span class="code-title">モンテカルロシミュレーション</span>
                     <button class="copy-btn" onclick="copyCode(this)">コピー</button>
                 </div>
-                <pre># 1000回シミュレーション
-for i in range(1000):
+                <pre># 10000回シミュレーション
+for i in range(10000):
     # 入力データにランダム変動を付与
     noisy_input = add_noise(original_input, std_dev=0.1)
     
