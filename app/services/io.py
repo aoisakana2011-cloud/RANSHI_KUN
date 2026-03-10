@@ -97,6 +97,26 @@ def get_user_meds_weights(uid: str) -> Optional[Dict[str, float]]:
         return None
     return ind.get("meds_category_weights")
 
+def delete_individual(uid: str) -> bool:
+    """個人データを削除"""
+    try:
+        # ファイルを削除
+        p = individual_path(uid)
+        if p.exists():
+            p.unlink()
+        
+        # インデックスからUIDを削除
+        idx = load_index()
+        uids = list(idx.get("individuals", []))
+        if uid in uids:
+            uids.remove(uid)
+            idx["individuals"] = uids
+            save_index(idx)
+        
+        return True
+    except Exception:
+        return False
+
 def set_user_meds_weights(uid: str, weights: Dict[str, float]) -> None:
     ind = load_individual(uid) or {"uid": uid}
     ind["meds_category_weights"] = {k: float(v) for k, v in weights.items()}

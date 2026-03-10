@@ -7,11 +7,24 @@ from ..bot_protection import require_human, limit_ip_registrations, verify_captc
 
 bp = Blueprint("auth", __name__)
 
+def is_development():
+    import os
+    return os.environ.get('FLASK_ENV', 'production') == 'development'
+
 @bp.route("/register", methods=["POST"])
-@require_human
-@limit_ip_registrations(max_registrations=1, time_window=3600)
-@verify_captcha()
 def register():
+    # 開発環境ではボット保護をスキップ
+    if not is_development():
+        @require_human
+        @limit_ip_registrations(max_registrations=1, time_window=3600)
+        @verify_captcha()
+        def protected_register():
+            return _do_register()
+        return protected_register()
+    else:
+        return _do_register()
+
+def _do_register():
     data = request.get_json() or {}
     username = data.get("username")
     password = data.get("password")
