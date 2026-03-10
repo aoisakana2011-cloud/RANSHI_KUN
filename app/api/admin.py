@@ -4,6 +4,7 @@ from flask_login import login_required, current_user
 from ..extensions import db
 from ..models import Individual, HistoryEntry, User
 from ..services.prediction import load_individual, save_individual
+from ..services.io import delete_individual
 from datetime import datetime, date
 import json
 from werkzeug.security import check_password_hash
@@ -32,39 +33,113 @@ def get_all_data():
     if not _is_admin_user():
         return jsonify({"error": "admin only"}), 403
     
-    # ユーザーデータ取得
-    users = User.query.all()
-    users_data = []
-    for user in users:
-        user_data = {
-            "id": user.id,
-            "username": user.username,
-            "email": user.email,
-            "is_active": user.is_active,
-            "created_at": user.created_at.isoformat() if user.created_at else None,
-            "individual_count": len(user.individuals.all())
-        }
-        users_data.append(user_data)
+    try:
+        individuals = Individual.query.all()
+        data = []
+        for ind in individuals:
+            # 個人データをJSONから読み込み
+            ind_data = load_individual(ind.uid)
+            if ind_data:
+                data.append({
+                    "uid": ind.uid,
+                    "created_at": ind.created_at.isoformat() if ind.created_at else None,
+                    "last_saved": ind_data.get("last_saved"),
+                    "input_count": ind_data.get("input_count", 0),
+                    "cycle_days": ind_data.get("cycle_days", 28),
+                    "history_count": len(ind_data.get("history", [])),
+                    "last_high_prob_date": ind_data.get("last_high_prob_date"),
+                    "base_start_date": ind_data.get("base_start_date")
+                })
+        return jsonify({"individuals": data})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@bp.route("/user/<uid>/data", methods=["GET"])
+@login_required
+def get_user_data(uid):
+    if not _is_admin_user():
+        return jsonify({"error": "admin only"}), 403
     
-    # 個体データ取得
-    individuals = Individual.query.all()
-    individuals_data = []
-    for ind in individuals:
-        ind_data = {
-            "id": ind.id,
-            "uid": ind.uid,
-            "user_id": ind.user_id,
-            "owner_username": ind.owner.username if ind.owner else "Unknown",
-            "cycle_days": ind.cycle_days,
-            "input_count": ind.input_count,
-            "created_at": ind.created_at.isoformat() if ind.created_at else None
-        }
-        individuals_data.append(ind_data)
+    try:
+        user_data = load_individual(uid)
+        if not user_data:
+            return jsonify({"error": "user not found"}), 404
+        
+        return jsonify({
+            "uid": uid,
+            "data": user_data
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@bp.route("/user/<uid>/data", methods=["PUT"])
+@login_required
+def update_user_data(uid):
+    if not _is_admin_user():
+        return jsonify({"error": "admin only"}), 403
     
-    return jsonify({
-        "users": users_data,
-        "individuals": individuals_data
-    })
+    try:
+        new_data = request.get_json()
+        if not new_data:
+            return jsonify({"error": "no data provided"}), 400
+        
+        # データを保存
+        save_individual(uid, new_data)
+        
+        return jsonify({"message": "data updated successfully", "uid": uid})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@bp.route("/user/<uid>/history/<entry_date>", methods=["DELETE"])
+@login_required
+def delete_user_entry(uid, entry_date):
+    if not _is_admin_user():
+        return jsonify({"error": "admin only"}), 403
+    
+    try:
+        user_data = load_individual(uid)
+        if not user_data:
+            return jsonify({"error": "user not found"}), 404
+        
+        history = user_data.get("history", [])
+        # 指定日付のエントリを削除
+        original_count = len(history)
+        history = [h for h in history if h.get("date") != entry_date]
+        
+        if len(history) == original_count:
+            return jsonify({"error": "entry not found"}), 404
+        
+        # データを更新
+        user_data["history"] = history
+        user_data["input_count"] = len(history)
+        user_data["last_saved"] = datetime.utcnow().isoformat()
+        
+        save_individual(uid, user_data)
+        
+        return jsonify({"message": "entry deleted successfully", "uid": uid, "date": entry_date})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@bp.route("/user/<uid>", methods=["DELETE"])
+@login_required
+def delete_user(uid):
+    if not _is_admin_user():
+        return jsonify({"error": "admin only"}), 403
+    
+    try:
+        # 個人データを削除
+        delete_individual(uid)
+        
+        # データベースからも削除
+        individual = Individual.query.filter_by(uid=uid).first()
+        if individual:
+            db.session.delete(individual)
+            db.session.commit()
+        
+        return jsonify({"message": "user deleted successfully", "uid": uid})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 @bp.route("/users", methods=["GET"])
 @login_required
@@ -87,22 +162,6 @@ def get_users():
     
     return jsonify({"users": users_data})
 
-@bp.route("/users/<int:user_id>", methods=["DELETE"])
-@login_required
-def delete_user(user_id):
-    if not _is_admin_user():
-        return jsonify({"error": "admin only"}), 403
-    
-    user = User.query.get_or_404(user_id)
-    if user.username == "admin":
-        return jsonify({"error": "cannot delete admin user"}), 403
-    
-    # ユーザーと関連データを削除
-    db.session.delete(user)
-    db.session.commit()
-    
-    return jsonify({"message": "user deleted successfully"})
-
 @bp.route("/users/<int:user_id>/toggle", methods=["POST"])
 @login_required
 def toggle_user(user_id):
@@ -117,119 +176,6 @@ def toggle_user(user_id):
         db.session.commit()
     
     return jsonify({"message": "user status updated successfully"})
-
-@bp.route("/individuals/<int:ind_id>", methods=["DELETE"])
-@login_required
-def delete_individual_admin(ind_id):
-    if not _is_admin_user():
-        return jsonify({"error": "admin only"}), 403
-    
-    ind = Individual.query.get_or_404(ind_id)
-    
-    # 個体と関連データを削除
-    db.session.delete(ind)
-    db.session.commit()
-    
-    return jsonify({"message": "individual deleted successfully"})
-
-@bp.route("/individuals/<int:ind_id>", methods=["PUT"])
-@login_required
-def update_individual_admin(ind_id):
-    if not _is_admin_user():
-        return jsonify({"error": "admin only"}), 403
-    
-    ind = Individual.query.get_or_404(ind_id)
-    data = request.get_json()
-    
-    try:
-        # 個体基本情報を更新
-        if "cycle_days" in data:
-            ind.cycle_days = float(data["cycle_days"])
-        if "toilet_avg" in data:
-            ind.toilet_avg = float(data["toilet_avg"])
-        if "toilet_duration_avg" in data:
-            ind.toilet_duration_avg = float(data["toilet_duration_avg"])
-        if "uid" in data:
-            # UIDの重複チェック
-            existing = Individual.query.filter(Individual.uid == data["uid"], Individual.id != ind_id).first()
-            if existing:
-                return jsonify({"error": "UID already exists"}), 400
-            ind.uid = data["uid"]
-        
-        ind.last_saved = datetime.utcnow()
-        db.session.commit()
-        
-        return jsonify({"message": "individual updated successfully"})
-    
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": f"update failed: {str(e)}"}), 500
-
-@bp.route("/individuals/<int:ind_id>/history/<int:history_id>", methods=["PUT"])
-@login_required
-def update_history_entry_admin(ind_id, history_id):
-    if not _is_admin_user():
-        return jsonify({"error": "admin only"}), 403
-    
-    ind = Individual.query.get_or_404(ind_id)
-    entry = HistoryEntry.query.filter_by(id=history_id, individual_id=ind.id).first_or_404()
-    
-    data = request.get_json()
-    
-    try:
-        # 履歴エントリを更新
-        if "date" in data:
-            entry.date = datetime.strptime(data["date"], "%Y-%m-%d").date()
-        if "gym" in data:
-            entry.gym = float(data["gym"])
-        if "absent" in data:
-            entry.absent = float(data["absent"])
-        if "pain" in data:
-            entry.pain = float(data["pain"])
-        if "headache" in data:
-            entry.headache = float(data["headache"])
-        if "tone_pressure" in data:
-            entry.tone_pressure = float(data["tone_pressure"])
-        if "toilet" in data:
-            entry.toilet = int(data["toilet"])
-        if "toilet_time_mean" in data:
-            entry.toilet_time_mean = float(data["toilet_time_mean"])
-        if "toilet_duration_mean" in data:
-            entry.toilet_duration_mean = float(data["toilet_duration_mean"])
-        if "cough" in data:
-            entry.cough = int(data["cough"])
-        if "toilet_times" in data:
-            entry.toilet_times = data["toilet_times"]
-        if "meds" in data:
-            entry.meds = data["meds"]
-        if "notes" in data:
-            entry.notes = data["notes"]
-        
-        db.session.commit()
-        
-        return jsonify({"message": "history entry updated successfully"})
-    
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": f"update failed: {str(e)}"}), 500
-
-@bp.route("/individuals/<int:ind_id>/history/<int:history_id>", methods=["DELETE"])
-@login_required
-def delete_history_entry_admin(ind_id, history_id):
-    if not _is_admin_user():
-        return jsonify({"error": "admin only"}), 403
-    
-    ind = Individual.query.get_or_404(ind_id)
-    entry = HistoryEntry.query.filter_by(id=history_id, individual_id=ind.id).first_or_404()
-    
-    try:
-        db.session.delete(entry)
-        db.session.commit()
-        return jsonify({"message": "history entry deleted successfully"})
-    
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": f"deletion failed: {str(e)}"}), 500
 
 @bp.route("/delete-all-data", methods=["POST"])
 @login_required

@@ -1249,6 +1249,16 @@ document.getElementById("monte-carlo-btn").addEventListener("click", async () =>
 });
 
 document.getElementById("register-btn").addEventListener("click", async () => {
+    const uid = document.getElementById("predict-uid").value.trim();
+    if (!uid) {
+        alert("UIDを入力してください");
+        return;
+    }
+    const dateStr = document.getElementById("predict-date").value;
+    if (!dateStr) {
+        alert("日付を入力してください");
+        return;
+    }
     
     const hour = document.getElementById("predict-hour").value.padStart(2, '0');
     const minute = document.getElementById("predict-minute").value.padStart(2, '0');
@@ -1295,6 +1305,9 @@ document.getElementById("register-btn").addEventListener("click", async () => {
             
             // 薬剤時刻を現在時刻に設定
             setCurrentTimeToMeds();
+            
+            // 履歴を再読み込み
+            loadHistory(uid);
         }
     } catch (err) {
         console.error("Register error:", err);  // デバッグ用
