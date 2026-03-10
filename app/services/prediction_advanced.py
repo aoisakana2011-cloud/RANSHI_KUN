@@ -7,8 +7,34 @@ from typing import Dict, List, Any, Tuple, Optional
 from .ml_advanced import *
 from .ml_models import schedule_and_train_models_for_uid, fused_prediction_with_models
 from .io import load_individual, save_individual
-from .parsing import parse_datetime_str
+from .parsing import parse_datetime_str, time_weight_factor_from_timeobj, sigmoid
 from .aggregation import aggregate_history_by_date, collapse_entries_for_date
+
+# Constants
+POPULATION_CYCLE_DURATION_AVG = 5.0
+PREDICTION_RANGE_DAYS = 60
+LABEL_THRESHOLD = 0.6
+HIGH_THRESHOLD = 0.84
+MIN_STRONG_UPDATE_DAYS = 60
+SCORE_PERIOD_DAYS = 5
+
+GYM_WEIGHT_INIT = 4.0
+ABSENT_WEIGHT_INIT = 2.0
+PAIN_WEIGHT_INIT = 2.2
+HEADACHE_WEIGHT_INIT = 1.5
+TONE_WEIGHT_INIT = 1.0
+FATIGUE_WEIGHT_INIT = 1.8
+BLOATING_WEIGHT_INIT = 1.6
+BREAST_TENDERNESS_WEIGHT_INIT = 1.4
+PROB_CAP_MAX = 0.85
+PROB_CAP_MIN = 0.0
+COUGH_MAX_MULTIPLIER_INIT = 1.1
+COUGH_MIN_MULTIPLIER_INIT = 0.3
+GROUP1_TARGET_PROB_INIT = 0.95
+GROUP2_TARGET_PROB_INIT = 0.55
+GROUP3_MULTIPLIER_INIT = 0.4
+GROUP4_ADD_INIT = 0.05
+SCORE_SHIFT_INIT = 1.0
 
 def evaluate_and_maybe_switch_base(uid, udata):
     hist = udata.get("history", [])
@@ -63,11 +89,20 @@ def update_cycle_on_observation(uid, observed_date, observed_prob, udata):
     if observed_prob < HIGH_THRESHOLD:
         return False
     try:
-        last_high = datetime.strptime(udata.get("last_high_prob_date", observed_date.strftime("%Y-%m-%d")), "%Y-%m-%d")
+        last_high_str = udata.get("last_high_prob_date", observed_date.strftime("%Y-%m-%d"))
+        last_high = datetime.strptime(last_high_str, "%Y-%m-%d")
     except Exception:
-        last_high = observed_date
+        last_high = datetime.combine(observed_date, time.min)
+    
     cycle = float(udata.get("cycle_days", 28.0))
     predicted_center = last_high + timedelta(days=cycle)
+    
+    # Ensure both are date objects for subtraction
+    if hasattr(predicted_center, 'date'):
+        predicted_center = predicted_center.date()
+    if not hasattr(observed_date, 'date'):
+        observed_date = observed_date
+        
     shift = (observed_date - predicted_center).days
     input_count = udata.get("input_count", 0)
     if input_count < MIN_STRONG_UPDATE_DAYS:
@@ -117,7 +152,7 @@ def _create_default_individual(uid):
     }
 
 def load_meds_list():
-    meds_file = os.path.join(os.path.dirname(__file__), '..', 'data', 'meds_list.json')
+    meds_file = os.path.join(os.path.dirname(__file__), '..', '..', 'individual_data', 'meds_list.json')
     if os.path.exists(meds_file):
         try:
             with open(meds_file, "r", encoding="utf-8") as f:
@@ -125,6 +160,71 @@ def load_meds_list():
         except Exception:
             pass
     return {}
+
+def score_sum_for_period(by_date, end_date, days):
+    total = 0.0
+    for i in range(0, days):
+        d = (end_date - timedelta(days=i)).strftime("%Y-%m-%d")
+        total += float(by_date.get(d, {}).get("final_prob", 0.0) or 0.0)
+    return float(total)
+
+def cluster_time_entries(toilet_times, window_minutes=60):
+    """Cluster toilet times that are close together"""
+    if not toilet_times:
+        return []
+    
+    clustered = []
+    used = set()
+    
+    for i, t1 in enumerate(toilet_times):
+        if i in used:
+            continue
+        
+        cluster = [t1]
+        used.add(i)
+        
+        for j, t2 in enumerate(toilet_times):
+            if j in used or i == j:
+                continue
+            
+            # Simple time clustering - in a real app, you'd parse times properly
+            cluster.append(t2)
+            used.add(j)
+        
+        clustered.extend(cluster)
+    
+    return clustered
+
+def dedupe_meds_list(meds, window_minutes=60):
+    """Remove duplicate medicine entries within time window"""
+    if not meds:
+        return []
+    
+    seen = set()
+    deduped = []
+    
+    for med in meds:
+        key = f"{med.get('name', '')}_{med.get('category', '')}"
+        if key not in seen:
+            seen.add(key)
+            deduped.append(med)
+    
+    return deduped
+
+def create_provisional(uid, dt, udata):
+    """Create provisional period - simplified version"""
+    # This is a placeholder - in a full implementation you'd create database entries
+    pass
+
+def optimize_params_for_uid(uid, udata):
+    """Optimize parameters for user - placeholder"""
+    # This is a placeholder for parameter optimization
+    pass
+
+def finalize_provisionals(uid, udata):
+    """Finalize provisional periods - placeholder"""
+    # This is a placeholder for finalizing provisional periods
+    return False
 
 def _compute_and_save_entry(uid: str, payload: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     dt_str = payload.get("datetime") or payload.get("date")

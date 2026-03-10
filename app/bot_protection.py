@@ -1,6 +1,7 @@
 """
 Bot detection and IP-based registration limiting middleware
 """
+import os
 import re
 import time
 from flask import request, jsonify, abort, current_app
@@ -13,6 +14,7 @@ class BotDetection:
     def __init__(self, app=None):
         self.app = app
         self.ip_registrations = defaultdict(list)
+        self.is_development = os.environ.get('FLASK_ENV', 'production') == 'development'
         if app is not None:
             self.init_app(app)
     
@@ -21,7 +23,11 @@ class BotDetection:
         app.before_request(self._detect_bots)
     
     def _detect_bots(self):
-        """Detect and block bots"""
+        """Detect and block bots - only in production"""
+        if self.is_development:
+            # 開発環境ではボット保護を無効化
+            return
+            
         user_agent = request.headers.get('User-Agent', '').lower()
         ip_address = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
         

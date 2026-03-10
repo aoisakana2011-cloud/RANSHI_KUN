@@ -135,6 +135,7 @@ def cluster_time_entries(entries: List[Dict[str, Any]], window_minutes: int = 60
 
 def collapse_entries_for_date(entries: List[Dict[str, Any]]) -> Dict[str, Any]:
     agg = {
+        "date": entries[0].get("date") if entries else None,
         "toilet_count": 0,
         "toilet_times": [],
         "toilet_duration_mean": 0.0,

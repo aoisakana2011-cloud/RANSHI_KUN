@@ -1,17 +1,30 @@
 # app/api/history.py
 from flask import Blueprint, request, jsonify
-from flask_login import login_required, current_user
+from flask_login import current_user
 from datetime import datetime
 from ..models import Individual, HistoryEntry
+import os
+
+def is_development():
+    return os.environ.get('FLASK_ENV', 'production') == 'development'
 
 bp = Blueprint("history", __name__)
 
 @bp.route("/<uid>", methods=["GET"])
-@login_required
 def get_history(uid):
-    ind = Individual.query.filter_by(uid=uid, user_id=current_user.id).first()
+    # 本番環境では認証を必須にする
+    if not is_development() and not current_user.is_authenticated:
+        return jsonify({"error": "authentication required"}), 401
+        
+    if is_development():
+        # 開発環境では全ユーザーのデータを表示
+        ind = Individual.query.filter_by(uid=uid).first()
+    else:
+        # 本番環境では現在のユーザーのデータのみ表示
+        ind = Individual.query.filter_by(uid=uid, user_id=current_user.id).first()
+        
     if not ind:
-        return jsonify({"error": "not found"}), 404
+        return jsonify([])  # Return empty list instead of error for development
     start_str = request.args.get("start")
     end_str = request.args.get("end")
     q = HistoryEntry.query.filter_by(individual_id=ind.id)

@@ -1,0 +1,103 @@
+{
+  "uid": "test_user",
+  "cycle_days": 28.0,
+  "toilet_avg": 7.0,
+  "toilet_duration_avg": 0.0,
+  "input_count": 1,
+  "last_high_prob_date": "2026-03-10",
+  "base_prob": 1.0,
+  "base_start_date": "2026-03-10",
+  "pending_candidate_start": null,
+  "history": [
+    {
+      "date": "2026-03-10",
+      "toilet_count": 8,
+      "toilet_times": [
+        {
+          "time": "08:00",
+          "duration_min": 5
+        },
+        {
+          "time": "14:30",
+          "duration_min": 3
+        },
+        {
+          "time": "08:00",
+          "duration_min": 5
+        },
+        {
+          "time": "14:30",
+          "duration_min": 3
+        },
+        {
+          "time": "08:00",
+          "duration_min": 5
+        },
+        {
+          "time": "14:30",
+          "duration_min": 3
+        },
+        {
+          "time": "08:00",
+          "duration_min": 5
+        },
+        {
+          "time": "14:30",
+          "duration_min": 3
+        }
+      ],
+      "toilet_duration_mean": 0.0,
+      "gym": 2.0,
+      "absent": 0.0,
+      "pain": 3.0,
+      "headache": 1.0,
+      "tone": 2.0,
+      "raw_score": 18.30875,
+      "final_prob": 1.0,
+      "cough": 4,
+      "meds": [
+        {
+          "name": "アセトアミノフェン",
+          "category": "日用でも生理でも使う薬",
+          "time": "09:00"
+        },
+        {
+          "name": "アセトアミノフェン",
+          "category": "日用でも生理でも使う薬",
+          "time": "09:00"
+        },
+        {
+          "name": "アセトアミノフェン",
+          "category": "日用でも生理でも使う薬",
+          "time": "09:00"
+        },
+        {
+          "name": "アセトアミノフェン",
+          "category": "日用でも生理でも使う薬",
+          "time": "09:00"
+        }
+      ]
+    }
+  ],
+  "toilet_time_mean": null,
+  "provisional_periods": [],
+  "last_saved": "2026-03-10T11:51:52.151181",
+  "models": {},
+  "weights": {
+    "gym": 4.0,
+    "absent": 2.0,
+    "pain": 2.2,
+    "headache": 1.5,
+    "tone": 1.0
+  },
+  "params": {
+    "cough_max_multiplier": 1.1,
+    "cough_min_multiplier": 0.3,
+    "group1_target_prob": 0.95,
+    "group2_target_prob": 0.55,
+    "group3_multiplier": 0.4,
+    "group4_add": 0.05,
+    "score_shift": 1.0
+  },
+  "last_observed_prob": 0.9999998943710589
+}

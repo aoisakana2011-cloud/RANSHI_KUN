@@ -1,8 +1,11 @@
 from flask import Blueprint, render_template, redirect, url_for
 from flask_login import current_user, login_required, logout_user
+import os
 
 bp = Blueprint("web", __name__)
 
+def is_development():
+    return os.environ.get('FLASK_ENV', 'production') == 'development'
 
 @bp.route("/")
 def index():
@@ -19,8 +22,10 @@ def login():
 
 
 @bp.route("/dashboard")
-@login_required
 def dashboard():
+    # 開発環境では認証をスキップ
+    if not is_development() and not current_user.is_authenticated:
+        return redirect(url_for("web.login"))
     return render_template("dashboard.html", title="ダッシュボード")
 
 

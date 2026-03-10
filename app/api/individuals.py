@@ -4,6 +4,10 @@ from flask_login import login_required, current_user
 from ..extensions import db
 from ..models import Individual, HistoryEntry
 from datetime import datetime, date
+import os
+
+def is_development():
+    return os.environ.get('FLASK_ENV', 'production') == 'development'
 
 bp = Blueprint("individuals", __name__)
 
@@ -51,23 +55,36 @@ def _individual_to_dict(ind, include_history=False):
     return d
 
 @bp.route("", methods=["GET"])
-@login_required
 def list_individuals():
-    inds = Individual.query.filter_by(user_id=current_user.id).all()
+    # 本番環境では認証を必須にする
+    if not is_development() and not current_user.is_authenticated:
+        return jsonify({"error": "authentication required"}), 401
+        
+    if is_development():
+        # 開発環境では全ユーザーのデータを表示
+        inds = Individual.query.all()
+    else:
+        # 本番環境では現在のユーザーのデータのみ表示
+        inds = Individual.query.filter_by(user_id=current_user.id).all()
     return jsonify([_individual_to_dict(i, include_history=False) for i in inds])
 
 @bp.route("", methods=["POST"])
-@login_required
 def create_individual():
+    # 本番環境では認証を必須にする
+    if not is_development() and not current_user.is_authenticated:
+        return jsonify({"error": "authentication required"}), 401
+        
     data = request.get_json() or {}
     uid = data.get("uid")
     if not uid:
         return jsonify({"error": "uid required"}), 400
     if Individual.query.filter_by(uid=uid).first():
         return jsonify({"error": "uid already exists"}), 400
+    
+    user_id = 1 if is_development() else current_user.id
     ind = Individual(
         uid=uid,
-        user_id=current_user.id,
+        user_id=user_id,
         cycle_days=data.get("cycle_days", 28.0),
         toilet_avg=data.get("toilet_avg", 7.0),
         toilet_duration_avg=data.get("toilet_duration_avg", 0.0),

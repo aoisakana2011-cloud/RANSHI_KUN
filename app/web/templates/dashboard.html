@@ -75,50 +75,20 @@
             <!-- 薬剤服用 -->
             <div class="meds-section">
                 <h4>薬剤服用</h4>
-                <div class="meds-single-column">
-                    <div class="med-item">
-                        <div class="med-header">一つ目</div>
-                        <select class="med-category" id="med1-category" onchange="updateMedOptions('med1')">
-                            <option value="">薬の種類を選択</option>
-                            <option value="生理のときにしかほぼ使わない薬">生理のときにしかほぼ使わない薬</option>
-                            <option value="日用でも生理でも使う薬">日用でも生理でも使う薬</option>
-                            <option value="花粉症の薬">花粉症の薬</option>
-                            <option value="その他の薬">その他の薬</option>
-                        </select>
-                        <select class="med-name" id="med1-name">
-                            <option value="">名称不明</option>
-                        </select>
-                        <input type="time" class="med-time" id="med1-time" value="">
+                <div class="meds-controls">
+                    <button type="button" id="add-med-row" onclick="addMedRow()">+ 薬を追加</button>
+                    <button type="button" id="clear-meds" onclick="clearMedRows()">クリア</button>
+                </div>
+                <div class="meds-table-container">
+                    <div class="meds-table-header">
+                        <span>薬剤</span>
+                        <span>種類</span>
+                        <span>名称</span>
+                        <span>時刻</span>
+                        <span>操作</span>
                     </div>
-                    
-                    <div class="med-item">
-                        <div class="med-header">二つ目</div>
-                        <select class="med-category" id="med2-category" onchange="updateMedOptions('med2')">
-                            <option value="">薬の種類を選択</option>
-                            <option value="生理のときにしかほぼ使わない薬">生理のときにしかほぼ使わない薬</option>
-                            <option value="日用でも生理でも使う薬">日用でも生理でも使う薬</option>
-                            <option value="花粉症の薬">花粉症の薬</option>
-                            <option value="その他の薬">その他の薬</option>
-                        </select>
-                        <select class="med-name" id="med2-name">
-                            <option value="">名称不明</option>
-                        </select>
-                        <input type="time" class="med-time" id="med2-time" value="">
-                    </div>
-                    
-                    <div class="med-item">
-                        <div class="med-header">三つ目</div>
-                        <select class="med-category" id="med3-category" onchange="updateMedOptions('med3')">
-                            <option value="">薬の種類を選択</option>
-                            <option value="生理のときにしかほぼ使わない薬">生理のときにしかほぼ使わない薬</option>
-                            <option value="日用でも生理でも使う薬">日用でも生理でも使う薬</option>
-                            <option value="花粉症の薬">花粉症の薬</option>
-                            <option value="その他の薬">その他の薬</option>
-                        </select>
-                        <select class="med-name" id="med3-name">
-                            <option value="">名称不明</option>
-                        </select>
-                        <input type="time" class="med-time" id="med3-time" value="">
+                    <div class="meds-table-body" id="meds-table-body">
+                        <!-- 初期状態では空 -->
                     </div>
                 </div>
             </div>
@@ -371,6 +341,93 @@
     display: none;
 }
 
+.meds-controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.meds-controls button {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.meds-controls button:hover {
+    background: var(--accent-color);
+    color: white;
+}
+
+.meds-table-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.meds-table-header {
+    display: grid;
+    grid-template-columns: 40px 1fr 1fr 100px 60px;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+.meds-table-body {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.med-row {
+    display: grid;
+    grid-template-columns: 40px 1fr 1fr 100px 60px;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    align-items: center;
+}
+
+.med-row input, .med-row select {
+    padding: 0.2rem;
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    width: 100%;
+}
+
+.med-row button {
+    padding: 0.25rem;
+    font-size: 0.7rem;
+    border: 1px solid #dc3545;
+    background: #dc3545;
+    color: white;
+    border-radius: 2px;
+    cursor: pointer;
+}
+
+.med-row button:hover {
+    background: #c82333;
+}
+
+.med-number {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.8rem;
+}
+
 .meds-single-column {
     display: flex;
     flex-direction: column;
@@ -578,14 +635,105 @@ function collectToiletData() {
     
     return toiletData;
 }
-// 薬剤データを収集
+// 薬剤行を追加
+function addMedRow() {
+    const body = document.getElementById("meds-table-body");
+    const rowCount = body.children.length + 1;
+    
+    const row = document.createElement("div");
+    row.className = "med-row";
+    
+    // 番号
+    const numberCell = document.createElement("span");
+    numberCell.className = "med-number";
+    numberCell.textContent = rowCount;
+    row.appendChild(numberCell);
+    
+    // カテゴリ選択
+    const categorySelect = document.createElement("select");
+    categorySelect.className = "med-category";
+    categorySelect.innerHTML = `
+        <option value="">薬の種類を選択</option>
+        <option value="生理のときにしかほぼ使わない薬">生理のときにしかほぼ使わない薬</option>
+        <option value="日用でも生理でも使う薬">日用でも生理でも使う薬</option>
+        <option value="花粉症の薬">花粉症の薬</option>
+        <option value="その他の薬">その他の薬</option>
+    `;
+    categorySelect.onchange = () => updateMedNameOptions(categorySelect);
+    row.appendChild(categorySelect);
+    
+    // 名称選択
+    const nameSelect = document.createElement("select");
+    nameSelect.className = "med-name";
+    nameSelect.innerHTML = '<option value="">名称不明</option>';
+    row.appendChild(nameSelect);
+    
+    // 時刻入力
+    const timeInput = document.createElement("input");
+    timeInput.type = "time";
+    timeInput.className = "med-time";
+    timeInput.value = formatTime(new Date());
+    row.appendChild(timeInput);
+    
+    // 削除ボタン
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.textContent = "削除";
+    deleteBtn.onclick = () => {
+        row.remove();
+        updateMedRowCount();
+    };
+    row.appendChild(deleteBtn);
+    
+    body.appendChild(row);
+    updateMedRowCount();
+}
+
+// 薬剤行をすべてクリア
+function clearMedRows() {
+    const body = document.getElementById("meds-table-body");
+    body.innerHTML = "";
+}
+
+// 薬剤行の番号を更新
+function updateMedRowCount() {
+    const rows = document.querySelectorAll(".med-row");
+    rows.forEach((row, index) => {
+        const numberCell = row.querySelector(".med-number");
+        if (numberCell) {
+            numberCell.textContent = index + 1;
+        }
+    });
+}
+
+// 薬剤名称オプションを更新
+function updateMedNameOptions(categorySelect) {
+    const row = categorySelect.closest(".med-row");
+    const nameSelect = row.querySelector(".med-name");
+    const category = categorySelect.value;
+    
+    // 名称不明を最初に追加
+    nameSelect.innerHTML = '<option value="">名称不明</option>';
+    
+    if (category && medsData[category]) {
+        medsData[category].forEach(med => {
+            const option = document.createElement("option");
+            option.value = med;
+            option.textContent = med;
+            nameSelect.appendChild(option);
+        });
+    }
+}
+
+// 薬剤データを収集（更新版）
 function collectMedsData() {
     const medsData = [];
+    const rows = document.querySelectorAll(".med-row");
     
-    for (let i = 1; i <= 3; i++) {
-        const category = document.getElementById(`med${i}-category`).value;
-        const name = document.getElementById(`med${i}-name`).value;
-        const time = document.getElementById(`med${i}-time`).value;
+    rows.forEach(row => {
+        const category = row.querySelector('.med-category').value;
+        const name = row.querySelector('.med-name').value;
+        const time = row.querySelector('.med-time').value;
         
         if (category && time) {
             medsData.push({
@@ -594,7 +742,7 @@ function collectMedsData() {
                 time: time
             });
         }
-    }
+    });
     
     return medsData;
 }
@@ -746,7 +894,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await loadMedsData();
     
     // 現在時刻を薬剤時刻入力欄に設定
-    setCurrentTimeToMeds();
+    // setCurrentTimeToMeds(); // 不要になったためコメントアウト
     
     // デバッグ情報
     console.log('Meds data loaded:', medsData);

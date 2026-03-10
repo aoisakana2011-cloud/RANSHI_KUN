@@ -1,0 +1,178 @@
+{
+  "生理のときにしかほぼ使わない薬": [
+    {
+      "name": "ロキソプロフェンナトリウム（ロキソニン）",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "イブプロフェン（ブルフェン）",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "ジクロフェナクナトリウム（ボルタレン）",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "アセトアミノフェン（カロナール / タイレノール）",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "ナプロキセン",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "インドメタシン",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "メフェナム酸",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    }
+  ],
+  "日用でも生理でも使う薬": [
+    {
+      "name": "アセトアミノフェン（カロナール / タイレノール）",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "ファモチジン（ガスター）",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "エソメプラゾール（ネキシウム）",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "ランソプラゾール（タケプロン）",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "オメプラゾール（オメプラール）",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "スコポラミン",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "ブチルスコポラミン",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    }
+  ],
+  "花粉症の薬": [
+    {
+      "name": "フェキソフェナジン（アレグラ）",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "セチリジン（ジルテック）",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "ロラタジン（クラリチン）",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "エピナスチン（アレジオン）",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "オロパタジン（パタノール）",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "アゼラスチン（オプティモール）",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "ベポタスチン（タリオン）",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    }
+  ],
+  "その他の薬": [
+    {
+      "name": "バファリンA",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "イブA錠",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "ビタミンCサプリメント",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "漢方薬",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "サプリメント",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "湿布",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    },
+    {
+      "name": "目薬",
+      "aliases": [],
+      "score": 1.0,
+      "source": "seed"
+    }
+  ]
+}
