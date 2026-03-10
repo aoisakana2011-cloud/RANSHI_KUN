@@ -50,10 +50,6 @@
                     <label>咳 <span class="criteria">0〜4</span></label>
                     <input type="number" id="predict-cough" min="0" max="4" value="0">
                 </div>
-                <div class="form-row">
-                    <label>トイレ回数 <span class="criteria">その日の回数</span></label>
-                    <input type="number" id="predict-toilet-count" min="0" max="10" value="0" onchange="updateToiletTable()">
-                </div>
                 <div class="form-buttons">
                     <button type="button" id="register-btn">登録</button>
                     <button type="button" id="predict-btn">予測</button>
@@ -67,7 +63,13 @@
         
         <div class="right-panel">
             <div class="toilet-section">
-                <h4>トイレ詳細</h4>
+                <div class="toilet-header">
+                    <h4>トイレ詳細</h4>
+                    <div class="toilet-count-input">
+                        <label>トイレ回数</label>
+                        <input type="number" id="predict-toilet-count" min="0" max="10" value="0" onchange="updateToiletTable()">
+                    </div>
+                </div>
                 <div class="toilet-table-container">
                     <div class="table-header">
                         <span>回数</span>
@@ -219,6 +221,44 @@
     background: var(--bg-secondary);
     display: flex;
     flex-direction: column;
+}
+
+.toilet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.toilet-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.toilet-count-input {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+}
+
+.toilet-count-input label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.toilet-count-input input {
+    width: 80px;
+    padding: 0.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    text-align: center;
 }
 
 .toilet-section h4, .meds-section h4 {
@@ -486,6 +526,13 @@ async function loadMedsData() {
     }
 }
 
+// 時刻フォーマット
+function formatTime(date) {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+}
+
 // トイレ表を更新
 function updateToiletTable() {
     const count = parseInt(document.getElementById("predict-toilet-count").value) || 0;
@@ -731,63 +778,38 @@ document.getElementById("predict-btn").addEventListener("click", async () => {
         alert("UIDを入力してください");
         return;
     }
-    const dateStr = document.getElementById("predict-date").value;
-    if (!dateStr) {
-        alert("日付を入力してください");
-        return;
-    }
+
     const payload = {
-        datetime: dateStr + " 07:00",
-        gym: Number(document.getElementById("predict-gym").value || 0),
-        absent: Number(document.getElementById("predict-absent").value || 0),
-        pain: Number(document.getElementById("predict-pain").value || 0),
-        headache: Number(document.getElementById("predict-headache").value || 0),
-        tone_pressure: Number(document.getElementById("predict-tone").value || 0),
-        cough: Number(document.getElementById("predict-cough").value || 0),
-        toilet_times: Array.from({ length: Number(document.getElementById("predict-toilet-count").value || 0) }).map(() => ({ time: "07:00", duration_min: 3 })),
-        notes: document.getElementById("predict-notes").value || "",
+        date: document.getElementById("predict-date").value,
+        gym: parseInt(document.getElementById("predict-gym").value),
+        absent: parseInt(document.getElementById("predict-absent").value),
+        pain: parseInt(document.getElementById("predict-pain").value),
+        headache: parseInt(document.getElementById("predict-headache").value),
+        tone: parseInt(document.getElementById("predict-tone").value),
+        cough: parseInt(document.getElementById("predict-cough").value),
+        toilet_count: parseInt(document.getElementById("predict-toilet-count").value) || 0,
+        toilet_times: collectToiletData(),
+        meds: collectMedsData()
     };
-    const res = await fetch("/api/v1/predict/" + encodeURIComponent(uid), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-    });
-    const out = document.getElementById("predict-result");
-    if (!res.ok) {
-        try {
-            const err = await res.json();
-            out.innerHTML = "予測に失敗しました: " + (err.error || res.statusText);
-        } catch (_) {
-            out.innerHTML = "予測に失敗しました";
+
+    try {
+        const response = await fetch(`/api/v1/predict/${uid}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || "予測に失敗しました");
         }
-        document.getElementById("chart-wrap").style.display = "none";
-        return;
+
+        const data = await response.json();
+        displayPredictionResult(data);
+        showPredictionChart(data);
+    } catch (err) {
+        alert(err.message);
     }
-    const data = await res.json();
-    const todayProb = (data.entry && data.entry.final_prob != null ? data.entry.final_prob : 0) * 100;
-    const dates = data.prediction && data.prediction.dates ? data.prediction.dates : [];
-    const percent = data.prediction && data.prediction.percent ? data.prediction.percent : [];
-    const centerDate = (data.prediction && data.prediction.center_date) || "";
-    const sigma = (data.prediction && data.prediction.sigma) != null ? data.prediction.sigma : 2;
-
-    const pairs = dates.map((d, i) => ({ date: d, p: percent[i] || 0 }));
-    pairs.sort((a, b) => b.p - a.p);
-    const top = pairs.slice(0, 5);
-
-    let html = "<strong>" + uid + "</strong> の " + (data.entry && data.entry.date) + " の推定: " + todayProb.toFixed(1) + "%<br>";
-    html += "中心日（予測ピーク）: " + centerDate + " &nbsp; σ=" + sigma.toFixed(2) + " 日<br>";
-    html += "確率が高い日 上位5日:<br>";
-    top.forEach(function (t) {
-        html += t.date + ": " + t.p.toFixed(1) + "%<br>";
-    });
-    out.innerHTML = html;
-
-    if (dates.length && percent.length) {
-        drawPredictionChart(dates, percent, centerDate, sigma);
-    } else {
-        document.getElementById("chart-wrap").style.display = "none";
-    }
-    loadHistory(uid);
 });
 
 document.getElementById("register-btn").addEventListener("click", async () => {
@@ -801,6 +823,7 @@ document.getElementById("register-btn").addEventListener("click", async () => {
         alert("日付を入力してください");
         return;
     }
+    
     const payload = {
         datetime: dateStr + " 07:00",
         gym: Number(document.getElementById("predict-gym").value || 0),
@@ -811,28 +834,56 @@ document.getElementById("register-btn").addEventListener("click", async () => {
         cough: Number(document.getElementById("predict-cough").value || 0),
         toilet_times: collectToiletData(),
         meds: collectMedsData(),
-        notes: document.getElementById("predict-notes").value || "",
     };
-    const res = await fetch("/api/v1/register/" + encodeURIComponent(uid), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-    });
-    const out = document.getElementById("predict-result");
-    if (!res.ok) {
-        try {
-            const err = await res.json();
-            out.innerHTML = "登録に失敗しました: " + (err.error || res.statusText);
-        } catch (_) {
-            out.innerHTML = "登録に失敗しました";
+    
+    try {
+        const res = await fetch("/api/v1/register/" + encodeURIComponent(uid), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || "登録に失敗しました");
         }
-        return;
+        
+        const data = await res.json();
+        const out = document.getElementById("predict-result");
+        out.innerHTML = `<div class="success">登録しました！</div>`;
+        
+        // フォームをリセット
+        document.getElementById("predict-form").reset();
+        updateToiletTable();
+        
+    } catch (err) {
+        alert(err.message);
     }
-    const data = await res.json();
-    out.innerHTML = "<strong>" + data.message + "</strong> " + (data.entry && data.entry.date ? data.entry.date + " を登録しました。" : "");
-    loadIndividuals();
-    loadHistory(uid);
 });
+
+// 予測結果を表示
+function displayPredictionResult(data) {
+    const out = document.getElementById("predict-result");
+    const todayProb = (data.entry && data.entry.final_prob != null ? data.entry.final_prob : 0) * 100;
+    const dates = data.prediction && data.prediction.dates ? data.prediction.dates : [];
+    const percent = data.prediction && data.prediction.percent ? data.prediction.percent : [];
+    const centerDate = (data.prediction && data.prediction.center_date) || "";
+    const sigma = (data.prediction && data.prediction.sigma) != null ? data.prediction.sigma : 2;
+
+    const pairs = dates.map((d, i) => ({ date: d, p: percent[i] || 0 }));
+    pairs.sort((a, b) => b.p - a.p);
+    const top = pairs.slice(0, 5);
+
+    let html = "<strong>" + (data.uid || "") + "</strong> の " + (data.entry && data.entry.date) + " の推定: " + todayProb.toFixed(1) + "%<br>";
+    html += "中心日（予測ピーク）: " + centerDate + " &nbsp; σ=" + sigma.toFixed(2) + " 日<br>";
+    html += "確率が高い日 上位5日:<br>";
+    top.forEach(function (t) {
+        html += t.date + ": " + t.p.toFixed(1) + "%<br>";
+    });
+    out.innerHTML = html;
+
+    loadHistory(data.uid || "");
+}
 
 // 評価システム関数
 async function loadEvaluation() {
