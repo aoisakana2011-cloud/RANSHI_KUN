@@ -136,6 +136,47 @@
 </section>
 
 <style>
+.form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.form-row label {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.form-row input {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.form-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.form-buttons button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    background: var(--accent-color);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.form-buttons button:hover {
+    background: var(--accent-color-dark);
+}
+
 .evaluation-section {
     background: var(--bg-secondary);
     padding: 1rem;
@@ -359,6 +400,22 @@
     color: var(--text-primary);
     font-size: 0.8rem;
 }
+
+.med-item select {
+    padding: 0.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    max-height: none;
+    height: auto;
+}
+
+.med-item select option {
+    padding: 0.25rem;
+}
+
 </style>
 
 <section class="section evaluation-section">
@@ -667,11 +724,18 @@ async function loadHistory(uid) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+    // 薬剤データを読み込み
     await loadMedsData();
-    loadIndividuals();
     
     // 現在時刻を薬剤時刻入力欄に設定
     setCurrentTimeToMeds();
+    
+    // デバッグ情報
+    console.log('Meds data loaded:', medsData);
+    console.log('Available categories:', Object.keys(medsData));
+    
+    // 個体一覧を読み込み
+    loadIndividuals();
 });
 
 // 現在時刻を薬剤時刻入力欄に設定
