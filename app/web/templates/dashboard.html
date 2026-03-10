@@ -50,10 +50,6 @@
                     <label>咳 <span class="criteria">0〜4</span></label>
                     <input type="number" id="predict-cough" min="0" max="4" value="0">
                 </div>
-                <div class="form-buttons">
-                    <button type="button" id="register-btn">登録</button>
-                    <button type="button" id="predict-btn">予測</button>
-                </div>
             </form>
             
             <!-- トイレ詳細 -->
@@ -127,6 +123,12 @@
                 </div>
             </div>
             
+            <!-- 予測・登録ボタン -->
+            <div class="form-buttons">
+                <button type="button" id="register-btn">登録</button>
+                <button type="button" id="predict-btn">予測</button>
+            </div>
+            
             <div id="predict-result" class="predict-result"></div>
             <div id="chart-wrap" class="chart-wrap" style="display:none;">
                 <canvas id="prediction-chart"></canvas>
@@ -166,15 +168,30 @@
     padding: 0.75rem 1.5rem;
     border: none;
     border-radius: 4px;
-    background: var(--accent-color);
-    color: white;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
+    font-size: 1rem;
 }
 
-.form-buttons button:hover {
-    background: var(--accent-color-dark);
+#register-btn {
+    background: #28a745;
+    color: white;
+}
+
+#register-btn:hover {
+    background: #218838;
+    transform: translateY(-1px);
+}
+
+#predict-btn {
+    background: #007bff;
+    color: white;
+}
+
+#predict-btn:hover {
+    background: #0056b3;
+    transform: translateY(-1px);
 }
 
 .evaluation-section {
@@ -408,12 +425,13 @@
     background: var(--bg-primary);
     color: var(--text-primary);
     font-size: 0.8rem;
-    max-height: none;
-    height: auto;
+    max-height: 120px;
+    overflow-y: auto;
 }
 
 .med-item select option {
     padding: 0.25rem;
+    min-height: 20px;
 }
 
 </style>
@@ -779,6 +797,11 @@ document.getElementById("predict-btn").addEventListener("click", async () => {
         alert("UIDを入力してください");
         return;
     }
+    const dateStr = document.getElementById("predict-date").value;
+    if (!dateStr) {
+        alert("日付を入力してください");
+        return;
+    }
 
     const payload = {
         date: document.getElementById("predict-date").value,
@@ -793,6 +816,8 @@ document.getElementById("predict-btn").addEventListener("click", async () => {
         meds: collectMedsData()
     };
 
+    console.log("Sending prediction request:", payload);  // デバッグ用
+
     try {
         const response = await fetch(`/api/v1/predict/${uid}`, {
             method: "POST",
@@ -801,14 +826,16 @@ document.getElementById("predict-btn").addEventListener("click", async () => {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || "予測に失敗しました");
+            const errorData = await response.json();
+            throw new Error(errorData.error || "予測に失敗しました");
         }
 
         const data = await response.json();
+        console.log("Prediction response:", data);  // デバッグ用
         displayPredictionResult(data);
         showPredictionChart(data);
     } catch (err) {
+        console.error("Prediction error:", err);  // デバッグ用
         alert(err.message);
     }
 });
@@ -837,31 +864,38 @@ document.getElementById("register-btn").addEventListener("click", async () => {
         meds: collectMedsData(),
     };
     
+    console.log("Sending register request:", payload);  // デバッグ用
+    
     try {
         const res = await fetch("/api/v1/register/" + encodeURIComponent(uid), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
         });
-        
+
         if (!res.ok) {
             const error = await res.json();
-            throw new Error(error.error || "登録に失敗しました");
+            if (error.error) {
+                alert(error.error);
+            } else {
+                alert("登録に失敗しました");
+            }
+        } else {
+            const data = await res.json();
+            console.log("Register response:", data);  // デバッグ用
+            const out = document.getElementById("predict-result");
+            out.innerHTML = `<div class="success">登録しました！</div>`;
+            
+            // フォームをリセット
+            document.getElementById("predict-form").reset();
+            clearToiletRows();
+            
+            // 薬剤時刻を現在時刻に設定
+            setCurrentTimeToMeds();
         }
-        
-        const data = await res.json();
-        const out = document.getElementById("predict-result");
-        out.innerHTML = `<div class="success">登録しました！</div>`;
-        
-        // フォームをリセット
-        document.getElementById("predict-form").reset();
-        clearToiletRows();
-        
-        // 薬剤時刻を現在時刻に設定
-        setCurrentTimeToMeds();
-        
     } catch (err) {
-        alert(err.message);
+        console.error("Register error:", err);  // デバッグ用
+        alert("登録に失敗しました");
     }
 });
 
