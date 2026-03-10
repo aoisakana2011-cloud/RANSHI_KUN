@@ -40,6 +40,7 @@ def _default_weights() -> Dict[str, float]:
         "pain": PAIN_WEIGHT_INIT,
         "headache": HEADACHE_WEIGHT_INIT,
         "tone": TONE_WEIGHT_INIT,
+        "cough": 0.3,  # 咳の重み
     }
 
 
@@ -262,6 +263,7 @@ def compute_prediction_distribution(
 
 
 def add_entry_and_predict(uid: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """エントリーを追加して予測（通常予測）"""
     entry, udata = _compute_and_save_entry(uid, payload)
     today_str = entry.get("date", "")
     try:
@@ -283,20 +285,9 @@ def add_entry_and_predict(uid: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         "dates": pred_res.get("dates"),
         "percent": pred_res.get("percent"),
     }
-    save_individual(uid, udata)
-
-    try:
-        schedule_and_train_models_for_uid(uid)
-    except Exception:
-        pass
-
     return {
         "uid": uid,
-        "entry": {
-            "date": entry["date"],
-            "raw_score": entry["raw_score"],
-            "final_prob": entry["final_prob"],
-        },
+        "entry": entry,
         "prediction": {
             "center_date": pred_res.get("center"),
             "sigma": pred_res.get("sigma"),
@@ -304,6 +295,29 @@ def add_entry_and_predict(uid: str, payload: Dict[str, Any]) -> Dict[str, Any]:
             "dates": pred_res.get("dates"),
             "percent": pred_res.get("percent"),
         },
+    }
+
+
+def monte_carlo_predict(uid: str, payload: Dict[str, Any], simulations: int = 1000) -> Dict[str, Any]:
+    """モンテカルロ法による予測"""
+    # 通常予測も実行
+    entry, udata = _compute_and_save_entry(uid, payload)
+    pred_res = compute_prediction_distribution(uid, udata)
+    
+    # モンテカルロシミュレーション
+    mc_result = monte_carlo_prediction(uid, payload, simulations)
+    
+    return {
+        "uid": uid,
+        "entry": entry,
+        "prediction": {
+            "center_date": pred_res.get("center"),
+            "sigma": pred_res.get("sigma"),
+            "range_days": PREDICTION_RANGE_DAYS,
+            "dates": pred_res.get("dates"),
+            "percent": pred_res.get("percent"),
+        },
+        "monte_carlo": mc_result
     }
 
 
@@ -328,19 +342,22 @@ def _compute_and_save_entry(uid: str, payload: Dict[str, Any]) -> tuple:
     tone = int(payload.get("tone_pressure", payload.get("tone", 0) or 0))
     cough = int(payload.get("cough", 0) or 0)
 
-    # 改善された評価ロジック
-    base_score = (w["gym"] * gym + w["absent"] * absent + w["pain"] * pain + 
-                   w["headache"] * headache + w["tone"] * tone) * entry_tf
-
-    # 咳の影響をより精密に計算
-    cough_impact = _calculate_cough_impact(cough, p)
-    adjusted_score = base_score * cough_impact
-
-    # トイレ回数と所要時間の影響を考慮
-    toilet_impact = _calculate_toilet_impact(payload.get("toilet_times", []), udata)
-    adjusted_score += toilet_impact
-
-    # 薬剤の影響をより精密に計算
+    # 全て重みにかける評価ロジック
+    # 各因子に重みを適用して合計スコアを計算
+    
+    # 生理関連症状（ポジティブ評価）
+    menstrual_score = (w["pain"] * pain + w["headache"] * headache + w["tone"] * tone) * entry_tf
+    
+    # 健康指標（ネガティブ評価 - 逆に重みをかける）
+    health_score = (w["gym"] * gym + w["absent"] * absent + w["cough"] * cough) * entry_tf
+    
+    # トイレ関連（生理症状として評価）
+    toilet_score = _calculate_toilet_weighted_score(payload.get("toilet_times", []), udata)
+    
+    # 基本スコア計算 - 生理症状から健康指標を引く
+    base_score = menstrual_score + toilet_score - health_score
+    
+    # 薬剤の影響を重み付きで計算
     meds_submission = payload.get("meds") or []
     if not isinstance(meds_submission, list):
         meds_submission = []
@@ -349,12 +366,11 @@ def _compute_and_save_entry(uid: str, payload: Dict[str, Any]) -> tuple:
     meds_list_data = load_meds_list_raw()
     meds_groups = list(meds_list_data.keys())
     
-    # 機械学習で薬剤カテゴリの影響度を動的に決定
-    meds_impact = _calculate_meds_impact(meds_submission, meds_groups, p, udata)
-    final_score = adjusted_score + meds_impact
+    meds_score = _calculate_weighted_meds_impact(meds_submission, meds_groups, p, udata)
+    final_score = base_score + meds_score
 
-    # 確率計算 - 機械学習で最適化されたシグモイド関数を使用
-    prob = _calculate_adaptive_probability(final_score, udata)
+    # 重み付き確率計算
+    prob = _calculate_weighted_probability(final_score, udata)
 
     toilet_times_payload = payload.get("toilet_times") or []
     toilet_times: List[Dict[str, Any]] = []
@@ -414,6 +430,280 @@ def _compute_and_save_entry(uid: str, payload: Dict[str, Any]) -> tuple:
     except Exception:
         pass
     return entry, load_individual(uid) or udata
+
+
+def _calculate_toilet_weighted_score(toilet_times: List[Dict], udata: Dict[str, Any]) -> float:
+    """トイレ関連を重み付きで評価"""
+    if not toilet_times:
+        return 0.0
+    
+    count = len(toilet_times)
+    avg_duration = sum(t.get("duration_min", 0) for t in toilet_times) / count
+    
+    # トイレ重み付け
+    toilet_weight = 0.8  # トイレの重み
+    
+    # 回数スコア（重み付き）
+    count_score = (count - 5) * toilet_weight if count > 5 else 0
+    
+    # 時間スコア（重み付き）
+    time_score = (avg_duration - 6) * toilet_weight * 0.5 if avg_duration > 6 else 0
+    
+    return count_score + time_score
+
+
+def _calculate_weighted_meds_impact(meds: List[Dict], meds_groups: List[str], params: Dict[str, float], udata: Dict[str, Any]) -> float:
+    """薬剤を重み付きで評価"""
+    if not meds or len(meds_groups) < 4:
+        return 0.0
+    
+    group1, group2, group3, group4 = meds_groups[:4]
+    taken_cats = set(m["category"] for m in meds if isinstance(m, dict) and m.get("category"))
+    
+    # 薬剤重み付け
+    meds_weights = {
+        group1: 8.0,  # 生理特有薬
+        group2: 2.0,  # 日用薬
+        group3: -1.0, # 花粉症薬（逆評価）
+        group4: 0.5   # その他薬
+    }
+    
+    score = 0.0
+    for cat in taken_cats:
+        if cat in meds_weights:
+            score += meds_weights[cat]
+    
+    return score
+
+
+def _calculate_weighted_probability(score: float, udata: Dict[str, Any]) -> float:
+    """重み付き確率計算"""
+    history = udata.get("history", [])
+    input_count = len(history)
+    
+    # 基本確率 - 重みを考慮
+    if score <= 0:
+        base_prob = 0.005  # 健康状態で0.5%
+    else:
+        # 重み付きスコアを確率に変換
+        base_prob = 0.005 + (score / 10.0) * 0.945  # 最大95%まで
+    
+    # 個人の重みパターンを考慮
+    if input_count >= 5:
+        recent_probs = [h.get("final_prob", 0) for h in history[-20:]]
+        if recent_probs:
+            avg_prob = sum(recent_probs) / len(recent_probs)
+            # 個人特有の重み調整
+            if avg_prob > 0.3:
+                base_prob *= 1.1
+            elif avg_prob < 0.1:
+                base_prob *= 0.9
+    
+    # 信頼性による重み調整
+    if input_count < 3:
+        base_prob *= 0.7
+    elif input_count >= 10:
+        base_prob *= 1.1
+    
+    return min(0.95, max(0.001, base_prob))
+
+
+def monte_carlo_prediction(uid: str, payload: Dict[str, Any], simulations: int = 1000) -> Dict[str, Any]:
+    """モンテカルロ法による予測シミュレーション"""
+    import random
+    import numpy as np
+    from datetime import datetime, timedelta
+    
+    udata = load_individual(uid) or _create_default_individual(uid)
+    w = _get_ml_optimized_weights(uid, udata)
+    p = _get_ml_optimized_params(uid, udata)
+    
+    # シミュレーション結果
+    all_scores = []
+    all_probs = []
+    
+    # 基本データ
+    base_gym = int(payload.get("gym", 0) or 0)
+    base_absent = int(payload.get("absent", 0) or 0)
+    base_pain = int(payload.get("pain", 0) or 0)
+    base_headache = int(payload.get("headache", 0) or 0)
+    base_tone = int(payload.get("tone_pressure", payload.get("tone", 0) or 0))
+    base_cough = int(payload.get("cough", 0) or 0)
+    
+    # モンテカルロシミュレーション
+    for i in range(simulations):
+        # 各因子にランダムな変動を加える
+        sim_gym = max(0, min(3, base_gym + random.gauss(0, 0.3)))
+        sim_absent = max(0, min(2, base_absent + random.gauss(0, 0.2)))
+        sim_pain = max(0, min(5, base_pain + random.gauss(0, 0.5)))
+        sim_headache = max(0, min(5, base_headache + random.gauss(0, 0.5)))
+        sim_tone = max(0, min(5, base_tone + random.gauss(0, 0.5)))
+        sim_cough = max(0, min(4, base_cough + random.gauss(0, 0.3)))
+        
+        # 時間重みの変動
+        time_variation = random.gauss(1.0, 0.1)
+        
+        # スコア計算
+        menstrual_score = (w["pain"] * sim_pain + w["headache"] * sim_headache + w["tone"] * sim_tone) * time_variation
+        health_score = (w["gym"] * sim_gym + w["absent"] * sim_absent + w["cough"] * sim_cough) * time_variation
+        toilet_score = _calculate_toilet_weighted_score(payload.get("toilet_times", []), udata) * random.gauss(1.0, 0.2)
+        
+        sim_score = menstrual_score + toilet_score - health_score
+        
+        # 薬剤影響の変動
+        meds_submission = payload.get("meds", [])
+        if isinstance(meds_submission, list):
+            from .io import load_meds_list_raw
+            meds_list_data = load_meds_list_raw()
+            meds_groups = list(meds_list_data.keys())
+            meds_score = _calculate_weighted_meds_impact(meds_submission, meds_groups, p, udata) * random.gauss(1.0, 0.15)
+            sim_score += meds_score
+        
+        # 確率計算
+        sim_prob = _calculate_weighted_probability(sim_score, udata)
+        
+        all_scores.append(sim_score)
+        all_probs.append(sim_prob)
+    
+    # 統計情報
+    scores_array = np.array(all_scores)
+    probs_array = np.array(all_probs)
+    
+    mean_score = float(np.mean(scores_array))
+    std_score = float(np.std(scores_array))
+    mean_prob = float(np.mean(probs_array))
+    std_prob = float(np.std(probs_array))
+    
+    # パーセンタイル
+    percentiles = {
+        "5": float(np.percentile(probs_array, 5)),
+        "25": float(np.percentile(probs_array, 25)),
+        "50": float(np.percentile(probs_array, 50)),  # 中央値
+        "75": float(np.percentile(probs_array, 75)),
+        "95": float(np.percentile(probs_array, 95))
+    }
+    
+    return {
+        "uid": uid,
+        "simulations": simulations,
+        "mean_score": round(mean_score, 3),
+        "std_score": round(std_score, 3),
+        "mean_probability": round(mean_prob, 4),
+        "std_probability": round(std_prob, 4),
+        "percentiles": {k: round(v, 4) for k, v in percentiles.items()},
+        "confidence_intervals": {
+            "95": [round(percentiles["2.5"], 4) if "2.5" in percentiles else round(percentiles["5"], 4), 
+                   round(percentiles["97.5"], 4) if "97.5" in percentiles else round(percentiles["95"], 4)]
+        },
+        "distribution": {
+            "scores": [round(s, 3) for s in scores_array.tolist()[:100]],  # 最初の100個
+            "probabilities": [round(p, 4) for p in probs_array.tolist()[:100]]
+        }
+    }
+
+
+def _calculate_cough_health_impact(cough: int, params: Dict[str, float]) -> float:
+    """咳を健康指標として評価（咳がある=健康状態が悪い=生理確率低い）"""
+    if cough <= 0:
+        return 0.8  # 咳なし=健康的=生理確率を下げる
+    
+    # 咳があるほど健康状態が悪いと判断
+    return 1.0 + (cough / 4.0) * 0.3
+
+
+def _calculate_toilet_menstrual_impact(toilet_times: List[Dict], udata: Dict[str, Any]) -> float:
+    """トイレを生理関連症状として評価"""
+    if not toilet_times:
+        return 0.0
+    
+    count = len(toilet_times)
+    avg_duration = sum(t.get("duration_min", 0) for t in toilet_times) / count
+    
+    # 生理時のトイレ傾向を考慮
+    impact = 0.0
+    
+    # 回数が多いほど生理の可能性が高い
+    if count >= 8:
+        impact += (count - 7) * 0.3
+    elif count >= 5:
+        impact += (count - 4) * 0.2
+    
+    # 所要時間が長いほど生理の可能性が高い
+    if avg_duration >= 10:
+        impact += (avg_duration - 9) * 0.1
+    elif avg_duration >= 7:
+        impact += (avg_duration - 6) * 0.05
+    
+    return min(2.0, impact)
+
+
+def _calculate_menstrual_meds_impact(meds: List[Dict], meds_groups: List[str], params: Dict[str, float], udata: Dict[str, Any]) -> float:
+    """薬剤を生理予測に特化して評価"""
+    if not meds or len(meds_groups) < 4:
+        return 0.0
+    
+    group1, group2, group3, group4 = meds_groups[:4]
+    taken_cats = set(m["category"] for m in meds if isinstance(m, dict) and m.get("category"))
+    
+    impact = 0.0
+    
+    # 生理特有薬 - 最も強い生理指標
+    if group1 in taken_cats:
+        impact += 8.0  # 大きく加点
+    
+    # 日用薬 - 軽度の生理指標
+    elif group2 in taken_cats:
+        impact += 2.0  # 少し加点
+    
+    # 花粉症薬 - 健康状態の指標（逆評価）
+    if group3 in taken_cats:
+        impact -= 1.0  # 少し減点
+    
+    # その他薬 - 軽微な影響
+    if group4 in taken_cats:
+        impact += 0.5  # ごくわずかに加点
+    
+    return impact
+
+
+def _calculate_menstrual_probability(score: float, udata: Dict[str, Any]) -> float:
+    """生理予測に特化した確率計算"""
+    history = udata.get("history", [])
+    input_count = len(history)
+    
+    # 基本シフト値 - 健康状態で確率が1%以内になるように調整
+    base_shift = 6.0  # 大きくシフトして健康状態の確率を低く
+    
+    # 基本確率計算
+    if score <= 0:
+        base_prob = 0.005  # 健康状態で0.5%
+    else:
+        # スコアが高いほど確率が上がるが、急激な上昇を抑制
+        base_prob = 0.005 + (score / base_shift) * 0.8
+    
+    # 個人の生理周期を考慮
+    if input_count >= 5:
+        # 過去の生理確率パターンを分析
+        recent_probs = [h.get("final_prob", 0) for h in history[-20:]]
+        if recent_probs:
+            avg_prob = sum(recent_probs) / len(recent_probs)
+            
+            # 個人の生理傾向を考慮
+            if avg_prob > 0.3:  # 高確率傾向の人
+                base_prob *= 1.2
+            elif avg_prob < 0.1:  # 低確率傾向の人
+                base_prob *= 0.8
+    
+    # データ数による信頼性調整
+    if input_count < 3:
+        base_prob *= 0.7  # 信頼性低
+    elif input_count >= 10:
+        base_prob *= 1.1  # 信頼性高
+    
+    # 確率範囲を制限
+    final_prob = min(0.95, max(0.001, base_prob))
+    
+    return final_prob
 
 
 def _get_ml_optimized_weights(uid: str, udata: Dict[str, Any]) -> Dict[str, float]:

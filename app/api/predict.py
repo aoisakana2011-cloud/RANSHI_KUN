@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
-from ..services.prediction_advanced import add_entry_and_predict, add_entry_only
+from ..services.prediction import add_entry_and_predict, add_entry_only, monte_carlo_predict
 import os
 
 def is_development():
@@ -52,4 +52,27 @@ def register_entry(uid):
         import traceback
         traceback.print_exc()  # 詳細なエラー情報
         return jsonify({"error": "register_failed"}), 500
+
+
+@bp.route("/monte-carlo/<uid>", methods=["POST"])
+def monte_carlo_for_uid(uid):
+    """モンテカルロ法による予測"""
+    # 本番環境では認証を必須にする
+    if not is_development() and not current_user.is_authenticated:
+        return jsonify({"error": "authentication required"}), 401
+        
+    data = request.get_json() or {}
+    try:
+        print(f"Monte Carlo request for {uid}: {data}")  # デバッグ用
+        result = monte_carlo_predict(uid, data)
+        print(f"Monte Carlo result: {result}")  # デバッグ用
+        return jsonify(result)
+    except ValueError as e:
+        print(f"ValueError in Monte Carlo: {e}")  # デバッグ用
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        print(f"Exception in Monte Carlo: {e}")  # デバッグ用
+        import traceback
+        traceback.print_exc()  # 詳細なエラー情報
+        return jsonify({"error": "monte_carlo_failed"}), 500
 

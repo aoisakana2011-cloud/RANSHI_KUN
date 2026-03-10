@@ -36,16 +36,16 @@
                     </div>
                 </div>
                 <div class="form-row">
-                    <label>運動 <span class="criteria">0〜3（なし、軽め、普通、激しい）</span></label>
+                    <label>運動 <span class="criteria">0〜3</span></label>
                     <select id="predict-gym">
-                        <option value="0">なし</option>
+                        <option value="0">通常</option>
                         <option value="1">軽め</option>
                         <option value="2">普通</option>
                         <option value="3">激しい</option>
                     </select>
                 </div>
                 <div class="form-row">
-                    <label>出欠 <span class="criteria">0〜2（通常、早退/遅刻、欠席）</span></label>
+                    <label>出欠 <span class="criteria">0〜2</span></label>
                     <select id="predict-absent">
                         <option value="0">通常</option>
                         <option value="1">早退/遅刻</option>
@@ -53,46 +53,46 @@
                     </select>
                 </div>
                 <div class="form-row">
-                    <label>腹痛 <span class="criteria">0〜5（強さ）</span></label>
+                    <label>腹痛（目測） <span class="criteria">0〜5</span></label>
                     <select id="predict-pain">
-                        <option value="0">0</option>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
-                        <option value="5">5</option>
+                        <option value="0">ない</option>
+                        <option value="1">少し</option>
+                        <option value="2">普通</option>
+                        <option value="3">強い</option>
+                        <option value="4">とても強い</option>
+                        <option value="5">激しい</option>
                     </select>
                 </div>
                 <div class="form-row">
-                    <label>頭痛 <span class="criteria">0〜5（強さ）</span></label>
+                    <label>頭痛（目測） <span class="criteria">0〜5</span></label>
                     <select id="predict-headache">
-                        <option value="0">0</option>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
-                        <option value="5">5</option>
+                        <option value="0">ない</option>
+                        <option value="1">少し</option>
+                        <option value="2">普通</option>
+                        <option value="3">強い</option>
+                        <option value="4">とても強い</option>
+                        <option value="5">激しい</option>
                     </select>
                 </div>
                 <div class="form-row">
-                    <label>緊張 <span class="criteria">0〜5（強さ）</span></label>
+                    <label>緊張（目測） <span class="criteria">0〜5</span></label>
                     <select id="predict-tone">
-                        <option value="0">0</option>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
-                        <option value="5">5</option>
+                        <option value="0">ない</option>
+                        <option value="1">少し</option>
+                        <option value="2">普通</option>
+                        <option value="3">強い</option>
+                        <option value="4">とても強い</option>
+                        <option value="5">激しい</option>
                     </select>
                 </div>
                 <div class="form-row">
                     <label>咳 <span class="criteria">0〜4</span></label>
                     <select id="predict-cough">
-                        <option value="0">0</option>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
+                        <option value="0">ない</option>
+                        <option value="1">少し</option>
+                        <option value="2">普通</option>
+                        <option value="3">強い</option>
+                        <option value="4">激しい</option>
                     </select>
                 </div>
             </form>
@@ -151,6 +151,7 @@
             <div class="form-buttons">
                 <button type="button" id="register-btn">登録</button>
                 <button type="button" id="predict-btn">予測</button>
+                <button type="button" id="monte-carlo-btn">モンテカルロ予測</button>
             </div>
             
             <div id="predict-result" class="predict-result"></div>
@@ -230,6 +231,16 @@
 
 #predict-btn:hover {
     background: #0056b3;
+    transform: translateY(-1px);
+}
+
+#monte-carlo-btn {
+    background: #6f42c1;
+    color: white;
+}
+
+#monte-carlo-btn:hover {
+    background: #5a32a3;
     transform: translateY(-1px);
 }
 
@@ -899,17 +910,6 @@ function drawPredictionChart(dates, percent, centerDate, sigma) {
                     }),
                     borderWidth: 1
                 },
-                {
-                    label: "正規分布 (σ=" + sigmaNum.toFixed(1) + "日)",
-                    data: normalCurve,
-                    type: "line",
-                    borderColor: "#e8a735",
-                    backgroundColor: "transparent",
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    fill: false,
-                    order: 1,
-                },
             ],
         },
         options: {
@@ -1176,7 +1176,7 @@ document.getElementById("predict-btn").addEventListener("click", async () => {
     }
 });
 
-document.getElementById("register-btn").addEventListener("click", async () => {
+document.getElementById("monte-carlo-btn").addEventListener("click", async () => {
     const uid = document.getElementById("predict-uid").value.trim();
     if (!uid) {
         alert("UIDを入力してください");
@@ -1187,6 +1187,50 @@ document.getElementById("register-btn").addEventListener("click", async () => {
         alert("日付を入力してください");
         return;
     }
+
+    const hour = document.getElementById("predict-hour").value.padStart(2, '0');
+    const minute = document.getElementById("predict-minute").value.padStart(2, '0');
+    const datetime = `${dateStr} ${hour}:${minute}:00`;
+
+    const payload = {
+        datetime: datetime,
+        gym: parseInt(document.getElementById("predict-gym").value),
+        absent: parseInt(document.getElementById("predict-absent").value),
+        pain: parseInt(document.getElementById("predict-pain").value),
+        headache: parseInt(document.getElementById("predict-headache").value),
+        tone_pressure: parseInt(document.getElementById("predict-tone").value),
+        cough: parseInt(document.getElementById("predict-cough").value),
+        toilet_count: document.querySelectorAll(".toilet-row").length,
+        toilet_times: collectToiletData(),
+        meds: collectMedsData(),
+        notes: document.getElementById("predict-notes").value.trim()
+    };
+
+    console.log("Sending Monte Carlo request:", payload);
+
+    try {
+        const response = await fetch(`/api/v1/monte-carlo/${uid}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || "モンテカルロ予測に失敗しました");
+        }
+
+        const data = await response.json();
+        console.log("Monte Carlo response:", data);
+        displayMonteCarloResult(data);
+        showPredictionChart(data);
+    } catch (err) {
+        console.error("Monte Carlo error:", err);
+        alert(err.message);
+    }
+});
+
+document.getElementById("register-btn").addEventListener("click", async () => {
     
     const hour = document.getElementById("predict-hour").value.padStart(2, '0');
     const minute = document.getElementById("predict-minute").value.padStart(2, '0');
@@ -1239,6 +1283,31 @@ document.getElementById("register-btn").addEventListener("click", async () => {
         alert("登録に失敗しました");
     }
 });
+
+// モンテカルロ結果を表示
+function displayMonteCarloResult(data) {
+    const out = document.getElementById("predict-result");
+    const mc = data.monte_carlo;
+    const todayProb = (data.entry && data.entry.final_prob != null ? data.entry.final_prob : 0) * 100;
+    
+    let html = "<strong>" + (data.uid || "") + "</strong> のモンテカルロ予測結果:<br>";
+    html += "通常予測確率: " + todayProb.toFixed(1) + "%<br><br>";
+    
+    if (mc) {
+        html += "モンテカルロシミュレーション（" + mc.simulations + "回）:<br>";
+        html += "平均確率: " + (mc.mean_probability * 100).toFixed(2) + "% ± " + (mc.std_probability * 100).toFixed(2) + "%<br>";
+        html += "中央値: " + (mc.percentiles["50"] * 100).toFixed(2) + "%<br>";
+        html += "95%信頼区間: " + (mc.confidence_intervals["95"][0] * 100).toFixed(2) + "% - " + (mc.confidence_intervals["95"][1] * 100).toFixed(2) + "%<br>";
+        html += "パーセンタイル分布:<br>";
+        html += "5%: " + (mc.percentiles["5"] * 100).toFixed(2) + "% | ";
+        html += "25%: " + (mc.percentiles["25"] * 100).toFixed(2) + "% | ";
+        html += "75%: " + (mc.percentiles["75"] * 100).toFixed(2) + "% | ";
+        html += "95%: " + (mc.percentiles["95"] * 100).toFixed(2) + "%<br>";
+    }
+    
+    out.innerHTML = html;
+    loadHistory(data.uid || "");
+}
 
 // 予測結果を表示
 function displayPredictionResult(data) {

@@ -1,0 +1,80 @@
+{
+  "uid": "test_menstrual",
+  "cycle_days": 20.0,
+  "toilet_avg": 7.0,
+  "toilet_duration_avg": 0.0,
+  "input_count": 1,
+  "last_high_prob_date": "2024-01-18",
+  "base_prob": 0.95,
+  "base_start_date": "2024-01-18",
+  "pending_candidate_start": null,
+  "history": [
+    {
+      "date": "2024-01-18",
+      "time": "2024-01-18 10:00:00",
+      "entry_time": "2024-01-18 10:00",
+      "gym": 0,
+      "absent": 0,
+      "pain": 3,
+      "headache": 2,
+      "tone_pressure": 3,
+      "cough": 0,
+      "toilet_times": [
+        {
+          "time": "08:00",
+          "duration_min": 12
+        },
+        {
+          "time": "14:00",
+          "duration_min": 8
+        },
+        {
+          "time": "20:00",
+          "duration_min": 15
+        }
+      ],
+      "toilet": 3,
+      "raw_score": 15.37,
+      "final_prob": 0.95,
+      "meds": [
+        {
+          "name": "ロキソプロフェンナトリウム（ロキソニン）",
+          "category": "生理のときにしかほぼ使わない薬",
+          "time": "09:30"
+        }
+      ],
+      "notes": "生理症状あり"
+    }
+  ],
+  "toilet_time_mean": null,
+  "provisional_periods": [
+    {
+      "id": "prov_20240118_1773149837",
+      "start_date": "2024-01-18",
+      "end_date": "2024-01-22",
+      "created_at": "2026-03-10T22:37:17.521464",
+      "status": "active",
+      "score": null
+    }
+  ],
+  "last_saved": "2026-03-10T22:37:17.521464",
+  "models": {},
+  "weights": {
+    "gym": 3.5,
+    "absent": 1.0,
+    "pain": 1.2,
+    "headache": 1.0,
+    "tone": 0.5
+  },
+  "params": {
+    "cough_max_multiplier": 1.2,
+    "cough_min_multiplier": 0.2,
+    "group1_target_prob": 0.99,
+    "group2_target_prob": 0.6,
+    "group3_multiplier": 0.5,
+    "group4_add": 0.1,
+    "score_shift": 4.0
+  },
+  "last_observed_prob": 0.95,
+  "last_learning_rate": 0.75
+}
