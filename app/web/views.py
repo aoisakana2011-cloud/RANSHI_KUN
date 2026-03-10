@@ -43,3 +43,8 @@ def admin_page():
         return redirect(url_for("web.dashboard"))
     return render_template("admin.html", title="管理者ページ")
 
+
+@bp.route("/algorithm")
+def algorithm_page():
+    return render_template("algorithm.html", title="アルゴリズム")
+
