@@ -132,6 +132,105 @@ def delete_individual_admin(ind_id):
     
     return jsonify({"message": "individual deleted successfully"})
 
+@bp.route("/individuals/<int:ind_id>", methods=["PUT"])
+@login_required
+def update_individual_admin(ind_id):
+    if not _is_admin_user():
+        return jsonify({"error": "admin only"}), 403
+    
+    ind = Individual.query.get_or_404(ind_id)
+    data = request.get_json()
+    
+    try:
+        # 個体基本情報を更新
+        if "cycle_days" in data:
+            ind.cycle_days = float(data["cycle_days"])
+        if "toilet_avg" in data:
+            ind.toilet_avg = float(data["toilet_avg"])
+        if "toilet_duration_avg" in data:
+            ind.toilet_duration_avg = float(data["toilet_duration_avg"])
+        if "uid" in data:
+            # UIDの重複チェック
+            existing = Individual.query.filter(Individual.uid == data["uid"], Individual.id != ind_id).first()
+            if existing:
+                return jsonify({"error": "UID already exists"}), 400
+            ind.uid = data["uid"]
+        
+        ind.last_saved = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({"message": "individual updated successfully"})
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"update failed: {str(e)}"}), 500
+
+@bp.route("/individuals/<int:ind_id>/history/<int:history_id>", methods=["PUT"])
+@login_required
+def update_history_entry_admin(ind_id, history_id):
+    if not _is_admin_user():
+        return jsonify({"error": "admin only"}), 403
+    
+    ind = Individual.query.get_or_404(ind_id)
+    entry = HistoryEntry.query.filter_by(id=history_id, individual_id=ind.id).first_or_404()
+    
+    data = request.get_json()
+    
+    try:
+        # 履歴エントリを更新
+        if "date" in data:
+            entry.date = datetime.strptime(data["date"], "%Y-%m-%d").date()
+        if "gym" in data:
+            entry.gym = float(data["gym"])
+        if "absent" in data:
+            entry.absent = float(data["absent"])
+        if "pain" in data:
+            entry.pain = float(data["pain"])
+        if "headache" in data:
+            entry.headache = float(data["headache"])
+        if "tone_pressure" in data:
+            entry.tone_pressure = float(data["tone_pressure"])
+        if "toilet" in data:
+            entry.toilet = int(data["toilet"])
+        if "toilet_time_mean" in data:
+            entry.toilet_time_mean = float(data["toilet_time_mean"])
+        if "toilet_duration_mean" in data:
+            entry.toilet_duration_mean = float(data["toilet_duration_mean"])
+        if "cough" in data:
+            entry.cough = int(data["cough"])
+        if "toilet_times" in data:
+            entry.toilet_times = data["toilet_times"]
+        if "meds" in data:
+            entry.meds = data["meds"]
+        if "notes" in data:
+            entry.notes = data["notes"]
+        
+        db.session.commit()
+        
+        return jsonify({"message": "history entry updated successfully"})
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"update failed: {str(e)}"}), 500
+
+@bp.route("/individuals/<int:ind_id>/history/<int:history_id>", methods=["DELETE"])
+@login_required
+def delete_history_entry_admin(ind_id, history_id):
+    if not _is_admin_user():
+        return jsonify({"error": "admin only"}), 403
+    
+    ind = Individual.query.get_or_404(ind_id)
+    entry = HistoryEntry.query.filter_by(id=history_id, individual_id=ind.id).first_or_404()
+    
+    try:
+        db.session.delete(entry)
+        db.session.commit()
+        return jsonify({"message": "history entry deleted successfully"})
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"deletion failed: {str(e)}"}), 500
+
 @bp.route("/delete-all-data", methods=["POST"])
 @login_required
 def delete_all_data():

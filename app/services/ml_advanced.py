@@ -161,7 +161,23 @@ def compute_prediction_distribution(last_high_date, cycle_days, input_count, day
     if combined.sum() > 0:
         combined = combined / combined.sum()
     scaled = combined * 100.0
-    return {"dates": [d.strftime("%Y-%m-%d") for d in dates], "percent": scaled.tolist(), "sigma": sigma, "center": next_peak.strftime("%Y-%m-%d"), "raw": raw.tolist()}
+    
+    # 正規分布パラメータを計算
+    normal_dist_params = {
+        "mu": next_peak.timestamp() * 1000,  # ミリ秒単位
+        "sigma": sigma * 24 * 60 * 60 * 1000,  # 日をミリ秒に変換
+        "peak_date": next_peak.strftime("%Y-%m-%d"),
+        "confidence": evidence_strength
+    }
+    
+    return {
+        "dates": [d.strftime("%Y-%m-%d") for d in dates], 
+        "percent": scaled.tolist(), 
+        "sigma": sigma, 
+        "center": next_peak.strftime("%Y-%m-%d"), 
+        "raw": raw.tolist(),
+        "normal_distribution": normal_dist_params
+    }
 
 def cluster_time_entries(toilet_entries, window_minutes=60):
     if not toilet_entries:
