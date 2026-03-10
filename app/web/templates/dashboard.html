@@ -3,7 +3,7 @@
 <h1 class="dash-title">RANSHI_KUN <span style="font-size:0.6em; color: var(--text-muted); font-weight:500">（ミサトクション共同開発）</span></h1>
 
 <section class="section individual-section">
-    <h3>登録済みの個体</h3>
+    <h3>登録済み個体</h3>
     <div id="individual-list" class="individual-list"></div>
     <form id="add-individual-form" class="add-individual-form">
         <label>UID</label>
@@ -13,8 +13,8 @@
 </section>
 
 <section class="section input-section">
-    <h3>今日の行動を記録して予測</h3>
-    <p class="form-criteria">※ 入力した「日付」の日の行動を記録し、その日の確率を出します。グラフは「今日」から60日分の予測です。</p>
+    <h3>本日の行動を記録して予測</h3>
+    <p class="form-criteria">※ 入力した「日付」の日の行動を記録し、その日の確率を算出します。グラフは「今日」から60日分の予測です。</p>
     <div class="input-layout">
         <div class="single-panel">
             <form id="predict-form" class="predict-form">
@@ -27,28 +27,73 @@
                     <input type="date" id="predict-date" required>
                 </div>
                 <div class="form-row">
-                    <label>ジム <span class="criteria">0〜5</span></label>
-                    <input type="number" id="predict-gym" min="0" max="5" value="0">
+                    <label>時刻 <span class="criteria">必須</span></label>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <input type="number" id="predict-hour" min="0" max="23" value="12" style="width: 60px;">
+                        <span>:</span>
+                        <input type="number" id="predict-minute" min="0" max="59" value="0" style="width: 60px;">
+                        <button type="button" onclick="setCurrentTime()" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">現在時刻</button>
+                    </div>
                 </div>
                 <div class="form-row">
-                    <label>欠席回数 <span class="criteria">0〜5</span></label>
-                    <input type="number" id="predict-absent" min="0" max="5" value="0">
+                    <label>運動 <span class="criteria">0〜3（なし、軽め、普通、激しい）</span></label>
+                    <select id="predict-gym">
+                        <option value="0">なし</option>
+                        <option value="1">軽め</option>
+                        <option value="2">普通</option>
+                        <option value="3">激しい</option>
+                    </select>
                 </div>
                 <div class="form-row">
-                    <label>痛み <span class="criteria">0〜5（強さ）</span></label>
-                    <input type="number" id="predict-pain" min="0" max="5" value="0">
+                    <label>出欠 <span class="criteria">0〜2（通常、早退/遅刻、欠席）</span></label>
+                    <select id="predict-absent">
+                        <option value="0">通常</option>
+                        <option value="1">早退/遅刻</option>
+                        <option value="2">欠席</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>腹痛 <span class="criteria">0〜5（強さ）</span></label>
+                    <select id="predict-pain">
+                        <option value="0">0</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                    </select>
                 </div>
                 <div class="form-row">
                     <label>頭痛 <span class="criteria">0〜5（強さ）</span></label>
-                    <input type="number" id="predict-headache" min="0" max="5" value="0">
+                    <select id="predict-headache">
+                        <option value="0">0</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                    </select>
                 </div>
                 <div class="form-row">
                     <label>緊張 <span class="criteria">0〜5（強さ）</span></label>
-                    <input type="number" id="predict-tone" min="0" max="5" value="0">
+                    <select id="predict-tone">
+                        <option value="0">0</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                    </select>
                 </div>
                 <div class="form-row">
                     <label>咳 <span class="criteria">0〜4</span></label>
-                    <input type="number" id="predict-cough" min="0" max="4" value="0">
+                    <select id="predict-cough">
+                        <option value="0">0</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                    </select>
                 </div>
             </form>
             
@@ -90,6 +135,15 @@
                     <div class="meds-table-body" id="meds-table-body">
                         <!-- 初期状態では空 -->
                     </div>
+                </div>
+            </div>
+            
+            <!-- その他 -->
+            <div class="misc-section">
+                <h4>その他</h4>
+                <div class="form-row">
+                    <label>メモ</label>
+                    <input type="text" id="predict-notes" placeholder="自由メモ">
                 </div>
             </div>
             
@@ -270,7 +324,7 @@
     height: 100%;
 }
 
-.toilet-section, .meds-section {
+.toilet-section, .meds-section, .misc-section {
     border: 1px solid var(--border-color);
     border-radius: 6px;
     padding: 1rem;
@@ -1046,6 +1100,13 @@ function formatTime(date) {
     return `${hours}:${minutes}`;
 }
 
+// 現在時刻を設定
+function setCurrentTime() {
+    const now = new Date();
+    document.getElementById("predict-hour").value = now.getHours();
+    document.getElementById("predict-minute").value = now.getMinutes();
+}
+
 document.getElementById("add-individual-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const uid = document.getElementById("new-uid").value.trim();
@@ -1073,17 +1134,22 @@ document.getElementById("predict-btn").addEventListener("click", async () => {
         return;
     }
 
+    const hour = document.getElementById("predict-hour").value.padStart(2, '0');
+    const minute = document.getElementById("predict-minute").value.padStart(2, '0');
+    const datetime = `${dateStr} ${hour}:${minute}:00`;
+
     const payload = {
-        date: document.getElementById("predict-date").value,
+        datetime: datetime,
         gym: parseInt(document.getElementById("predict-gym").value),
         absent: parseInt(document.getElementById("predict-absent").value),
         pain: parseInt(document.getElementById("predict-pain").value),
         headache: parseInt(document.getElementById("predict-headache").value),
-        tone: parseInt(document.getElementById("predict-tone").value),
+        tone_pressure: parseInt(document.getElementById("predict-tone").value),
         cough: parseInt(document.getElementById("predict-cough").value),
         toilet_count: document.querySelectorAll(".toilet-row").length,
         toilet_times: collectToiletData(),
-        meds: collectMedsData()
+        meds: collectMedsData(),
+        notes: document.getElementById("predict-notes").value.trim()
     };
 
     console.log("Sending prediction request:", payload);  // デバッグ用
@@ -1122,8 +1188,12 @@ document.getElementById("register-btn").addEventListener("click", async () => {
         return;
     }
     
+    const hour = document.getElementById("predict-hour").value.padStart(2, '0');
+    const minute = document.getElementById("predict-minute").value.padStart(2, '0');
+    const datetime = dateStr + " " + hour + ":" + minute + ":00";
+    
     const payload = {
-        datetime: dateStr + " 07:00",
+        datetime: datetime,
         gym: Number(document.getElementById("predict-gym").value || 0),
         absent: Number(document.getElementById("predict-absent").value || 0),
         pain: Number(document.getElementById("predict-pain").value || 0),
@@ -1132,6 +1202,7 @@ document.getElementById("register-btn").addEventListener("click", async () => {
         cough: Number(document.getElementById("predict-cough").value || 0),
         toilet_times: collectToiletData(),
         meds: collectMedsData(),
+        notes: document.getElementById("predict-notes").value.trim()
     };
     
     console.log("Sending register request:", payload);  // デバッグ用
@@ -1154,7 +1225,7 @@ document.getElementById("register-btn").addEventListener("click", async () => {
             const data = await res.json();
             console.log("Register response:", data);  // デバッグ用
             const out = document.getElementById("predict-result");
-            out.innerHTML = `<div class="success">登録しました！</div>`;
+            out.innerHTML = `<div class="success">データを登録しました</div>`;
             
             // フォームをリセット
             document.getElementById("predict-form").reset();

@@ -1,14 +1,74 @@
 {
   "uid": "test_user",
-  "cycle_days": 28.0,
+  "cycle_days": 20.0,
   "toilet_avg": 7.0,
   "toilet_duration_avg": 0.0,
-  "input_count": 1,
-  "last_high_prob_date": "2026-03-10",
+  "input_count": 3,
+  "last_high_prob_date": "2024-01-16",
   "base_prob": 1.0,
   "base_start_date": "2026-03-10",
   "pending_candidate_start": null,
   "history": [
+    {
+      "date": "2024-01-15",
+      "time": "2024-01-15 14:30:00",
+      "entry_time": "2024-01-15 14:30",
+      "gym": 1,
+      "absent": 0,
+      "pain": 2,
+      "headache": 1,
+      "tone_pressure": 3,
+      "cough": 1,
+      "toilet_times": [
+        {
+          "time": "08:00",
+          "duration_min": 5
+        },
+        {
+          "time": "14:00",
+          "duration_min": 3
+        }
+      ],
+      "toilet": 2,
+      "raw_score": 12.19,
+      "final_prob": 1.0,
+      "meds": [
+        {
+          "name": "ロキソプロフェンナトリウム（ロキソニン）",
+          "category": "生理のときにしかほぼ使わない薬",
+          "time": "10:00"
+        }
+      ],
+      "notes": "テストデータ"
+    },
+    {
+      "date": "2024-01-16",
+      "time": "2024-01-16 10:00:00",
+      "entry_time": "2024-01-16 10:00",
+      "gym": 0,
+      "absent": 0,
+      "pain": 1,
+      "headache": 0,
+      "tone_pressure": 2,
+      "cough": 0,
+      "toilet_times": [
+        {
+          "time": "09:00",
+          "duration_min": 4
+        }
+      ],
+      "toilet": 1,
+      "raw_score": 4.62,
+      "final_prob": 0.974,
+      "meds": [
+        {
+          "name": "アセトアミノフェン（カロナール）",
+          "category": "日用でも生理でも使う薬",
+          "time": "09:30"
+        }
+      ],
+      "notes": "テストデータ2"
+    },
     {
       "date": "2026-03-10",
       "toilet_count": 8,
@@ -80,9 +140,28 @@
     }
   ],
   "toilet_time_mean": null,
-  "provisional_periods": [],
-  "last_saved": "2026-03-10T11:51:52.151181",
-  "models": {},
+  "provisional_periods": [
+    {
+      "id": "prov_20240115_1773148459",
+      "start_date": "2024-01-15",
+      "end_date": "2024-01-19",
+      "created_at": "2026-03-10T22:14:19.768758",
+      "status": "active",
+      "score": null
+    },
+    {
+      "id": "prov_20240116_1773148472",
+      "start_date": "2024-01-16",
+      "end_date": "2024-01-20",
+      "created_at": "2026-03-10T22:14:32.887777",
+      "status": "active",
+      "score": null
+    }
+  ],
+  "last_saved": "2026-03-10T22:14:32.887777",
+  "models": {
+    "day_classifier": "C:\\Users\\Owner\\Documents\\RANSHI_KUN_Flask\\models\\test_user_dayclf.pkl"
+  },
   "weights": {
     "gym": 4.0,
     "absent": 2.0,
@@ -99,5 +178,6 @@
     "group4_add": 0.05,
     "score_shift": 1.0
   },
-  "last_observed_prob": 0.9999998943710589
+  "last_observed_prob": 0.973915924853617,
+  "last_learning_rate": 0.75
 }

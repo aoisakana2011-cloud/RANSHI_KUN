@@ -12,26 +12,25 @@ POPULATION_CYCLE_DURATION_AVG = 5.0
 PREDICTION_RANGE_DAYS = 60
 LABEL_THRESHOLD = 0.6
 HIGH_THRESHOLD = 0.84
-MIN_STRONG_UPDATE_DAYS = 60
+MIN_STRONG_UPDATE_DAYS = 90
 SCORE_PERIOD_DAYS = 5
 
-GYM_WEIGHT_INIT = 4.0
-ABSENT_WEIGHT_INIT = 2.0
-PAIN_WEIGHT_INIT = 2.2
-HEADACHE_WEIGHT_INIT = 1.5
-TONE_WEIGHT_INIT = 1.0
-FATIGUE_WEIGHT_INIT = 1.8
-BLOATING_WEIGHT_INIT = 1.6
-BREAST_TENDERNESS_WEIGHT_INIT = 1.4
-PROB_CAP_MAX = 0.85
-PROB_CAP_MIN = 0.0
-COUGH_MAX_MULTIPLIER_INIT = 1.1
-COUGH_MIN_MULTIPLIER_INIT = 0.3
-GROUP1_TARGET_PROB_INIT = 0.95
-GROUP2_TARGET_PROB_INIT = 0.55
-GROUP3_MULTIPLIER_INIT = 0.4
-GROUP4_ADD_INIT = 0.05
-SCORE_SHIFT_INIT = 1.0
+GYM_WEIGHT_INIT = 3.5 
+ABSENT_WEIGHT_INIT = 1.0 
+PAIN_WEIGHT_INIT = 1.2
+HEADACHE_WEIGHT_INIT = 1.0
+TONE_WEIGHT_INIT = 0.5
+COUGH_MAX_MULTIPLIER_INIT = 1.2
+COUGH_MIN_MULTIPLIER_INIT = 0.2
+GROUP1_TARGET_PROB_INIT = 0.99
+GROUP2_TARGET_PROB_INIT = 0.60
+GROUP3_MULTIPLIER_INIT = 0.5
+GROUP4_ADD_INIT = 0.1
+SCORE_SHIFT_INIT = 4.0
+PROVISIONAL_PERIOD_DAYS = 5
+PROVISIONAL_COMPARISON_DAYS = 20
+PROVISIONAL_CONFIDENCE_SCALE = 4.0
+EPS = 1e-6
 
 
 def _default_weights() -> Dict[str, float]:
@@ -41,7 +40,6 @@ def _default_weights() -> Dict[str, float]:
         "pain": PAIN_WEIGHT_INIT,
         "headache": HEADACHE_WEIGHT_INIT,
         "tone": TONE_WEIGHT_INIT,
-        "toilet_duration": 1.2,
     }
 
 
@@ -309,83 +307,6 @@ def add_entry_and_predict(uid: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _enhanced_sigmoid(x: float, shift: float = 0.0, steepness: float = 1.0) -> float:
-    return 1.0 / (1.0 + math.exp(-steepness * (x - shift)))
-
-
-def _calculate_medical_probability(raw_score: float, weights_sum: float, params: Dict[str, float], udata: Dict[str, Any]) -> float:
-    base_prob = _enhanced_sigmoid(raw_score - params["score_shift"], steepness=0.6)
-    
-    gym_bonus = 0.0
-    if weights_sum > 0:
-        gym_bonus = min(0.15, abs(weights_sum) * 0.05)
-    
-    pain_bonus = 0.0
-    if raw_score > 2.0:
-        pain_bonus = min(0.20, (raw_score - 2.0) * 0.08)
-    
-    final_prob = base_prob + gym_bonus + pain_bonus
-    
-    input_count = len(udata.get("history", []))
-    if input_count < 5:
-        final_prob *= 0.5
-    elif input_count < 10:
-        final_prob *= 0.7
-    elif input_count < 20:
-        final_prob *= 0.85
-    
-    return min(0.90, max(0.0, final_prob))
-
-
-def _predict_internal_factors(udata: Dict[str, Any]) -> Dict[str, Any]:
-    history = udata.get("history", [])
-    if len(history) < 5:
-        return {
-            "hormone_balance": 0.5,
-            "estrogen_level": 0.5,
-            "progesterone_level": 0.5,
-            "cycle_phase": "unknown",
-            "confidence": 0.1
-        }
-    
-    recent_history = history[-10:]
-    
-    pain_avg = sum(entry.get("pain", 0) for entry in recent_history) / len(recent_history)
-    headache_avg = sum(entry.get("headache", 0) for entry in recent_history) / len(recent_history)
-    toilet_avg = sum(entry.get("toilet", 0) for entry in recent_history) / len(recent_history)
-    gym_avg = sum(entry.get("gym", 0) for entry in recent_history) / len(recent_history)
-    
-    exercise_deficit = max(0, 3 - gym_avg) / 3
-    
-    symptom_score = (pain_avg + headache_avg) / 10
-    
-    toilet_score = min(1.0, toilet_avg / 10)
-    
-    hormone_balance = min(1.0, exercise_deficit * 0.4 + symptom_score * 0.4 + toilet_score * 0.2)
-    
-    estrogen_level = min(1.0, exercise_deficit * 0.3 + headache_avg * 0.2 + min(pain_avg, 3) * 0.3)
-    
-    progesterone_level = min(1.0, max(pain_avg - 2, 0) * 0.4 + toilet_score * 0.3)
-    
-    high_prob_days = [entry for entry in recent_history if entry.get("final_prob", 0) > 0.6]
-    if len(high_prob_days) > 0:
-        cycle_phase = "luteal" if hormone_balance > 0.6 else "follicular"
-    else:
-        cycle_phase = "menstrual" if pain_avg > 2 else "follicular"
-    
-    confidence = min(1.0, len(recent_history) / 20)
-    
-    return {
-        "hormone_balance": round(hormone_balance, 3),
-        "estrogen_level": round(estrogen_level, 3),
-        "progesterone_level": round(progesterone_level, 3),
-        "cycle_phase": cycle_phase,
-        "confidence": round(confidence, 3),
-        "predicted_at": datetime.utcnow().isoformat(),
-        "data_points": len(recent_history)
-    }
-
-
 def _compute_and_save_entry(uid: str, payload: Dict[str, Any]) -> tuple:
     dt_str = payload.get("datetime") or payload.get("date")
     dt = parse_datetime_str(dt_str) if dt_str else None
@@ -395,10 +316,10 @@ def _compute_and_save_entry(uid: str, payload: Dict[str, Any]) -> tuple:
     entry_tf = time_weight_factor_from_timeobj(dt.time())
 
     udata = load_individual(uid) or _create_default_individual(uid)
-    w = dict(_default_weights())
-    w.update(udata.get("weights") or {})
-    p = dict(_default_params())
-    p.update(udata.get("params") or {})
+    
+    # 機械学習で定数を動的に決定
+    w = _get_ml_optimized_weights(uid, udata)
+    p = _get_ml_optimized_params(uid, udata)
 
     gym = int(payload.get("gym", 0) or 0)
     absent = int(payload.get("absent", 0) or 0)
@@ -407,72 +328,33 @@ def _compute_and_save_entry(uid: str, payload: Dict[str, Any]) -> tuple:
     tone = int(payload.get("tone_pressure", payload.get("tone", 0) or 0))
     cough = int(payload.get("cough", 0) or 0)
 
-    weighted_score = (
-        w["gym"] * gym
-        + w["absent"] * absent
-        + w["pain"] * pain
-        + w["headache"] * headache
-        + w["tone"] * tone
-    )
-    
-    weights_sum = w["gym"] * gym
-    
-    raw_score = weighted_score * entry_tf
+    # 改善された評価ロジック
+    base_score = (w["gym"] * gym + w["absent"] * absent + w["pain"] * pain + 
+                   w["headache"] * headache + w["tone"] * tone) * entry_tf
 
-    cough_multiplier = p["cough_max_multiplier"] - (p["cough_max_multiplier"] - p["cough_min_multiplier"]) * (cough / 4.0)
-    raw_score *= cough_multiplier
+    # 咳の影響をより精密に計算
+    cough_impact = _calculate_cough_impact(cough, p)
+    adjusted_score = base_score * cough_impact
 
-    toilet_times_payload = payload.get("toilet_times") or []
-    toilet_count = len(toilet_times_payload)
-    
-    if toilet_count > 0:
-        avg_duration = sum(t.get("duration_min", 0) for t in toilet_times_payload) / toilet_count
-        avg_duration = max(0, min(avg_duration, 30))
-        
-        history = udata.get("history", [])
-        if history:
-            all_durations = []
-            for entry in history[-20:]:
-                for t in entry.get("toilet_times", []):
-                    if t.get("duration_min"):
-                        all_durations.append(t["duration_min"])
-            
-            if all_durations:
-                historical_avg = sum(all_durations) / len(all_durations)
-                target_duration = historical_avg + 5.0
-            else:
-                target_duration = 5.0
-        else:
-            target_duration = 5.0
-        
-        duration_score = 1.0 - abs(avg_duration - target_duration) / 15.0
-        duration_score = max(0, duration_score)
-        
-        toilet_score = (toilet_count / 10.0) * 0.6 + duration_score * 0.4
-        raw_score += toilet_score * 2.0
+    # トイレ回数と所要時間の影響を考慮
+    toilet_impact = _calculate_toilet_impact(payload.get("toilet_times", []), udata)
+    adjusted_score += toilet_impact
 
+    # 薬剤の影響をより精密に計算
     meds_submission = payload.get("meds") or []
     if not isinstance(meds_submission, list):
         meds_submission = []
 
-    CAT_PERIOD_ONLY = "生理のときにしかほぼ使わない薬"
-    CAT_DUAL_USE = "日用でも生理でも使う薬"
-    CAT_POLLEN = "花粉症の薬"
-    taken_cats = set(m.get("category") for m in meds_submission if isinstance(m, dict) and m.get("category"))
-
-    if CAT_POLLEN in taken_cats:
-        raw_score *= 0.5
+    from .io import load_meds_list_raw
+    meds_list_data = load_meds_list_raw()
+    meds_groups = list(meds_list_data.keys())
     
-    prob = _calculate_medical_probability(raw_score, weights_sum, p, udata)
-    
-    if CAT_PERIOD_ONLY in taken_cats:
-        prob = 0.99
-    elif CAT_DUAL_USE in taken_cats:
-        prob = min(1.0, prob + 0.30)
+    # 機械学習で薬剤カテゴリの影響度を動的に決定
+    meds_impact = _calculate_meds_impact(meds_submission, meds_groups, p, udata)
+    final_score = adjusted_score + meds_impact
 
-    input_count_before = int(udata.get("input_count", 0) or 0)
-    cap = PROB_CAP_MIN + (PROB_CAP_MAX - PROB_CAP_MIN) * min(1.0, input_count_before / max(1, MIN_STRONG_UPDATE_DAYS))
-    prob = min(float(prob), cap)
+    # 確率計算 - 機械学習で最適化されたシグモイド関数を使用
+    prob = _calculate_adaptive_probability(final_score, udata)
 
     toilet_times_payload = payload.get("toilet_times") or []
     toilet_times: List[Dict[str, Any]] = []
@@ -487,7 +369,7 @@ def _compute_and_save_entry(uid: str, payload: Dict[str, Any]) -> tuple:
         "gym": gym, "absent": absent, "pain": pain, "headache": headache,
         "tone_pressure": tone, "cough": cough,
         "toilet_times": toilet_times, "toilet": len(toilet_times),
-        "raw_score": round(float(raw_score), 2), "final_prob": round(float(prob), 3),
+        "raw_score": round(float(final_score), 2), "final_prob": round(float(prob), 3),
         "meds": meds_submission,
         "notes": (payload.get("notes") or "").strip() if isinstance(payload.get("notes"), str) else "",
     }
@@ -520,19 +402,206 @@ def _compute_and_save_entry(uid: str, payload: Dict[str, Any]) -> tuple:
     udata["input_count"] = len(collapsed)
     udata["last_saved"] = datetime.utcnow().isoformat()
     
-    internal_predictions = _predict_internal_factors(udata)
-    udata["internal_predictions"] = internal_predictions
-    
     save_individual(uid, udata)
 
     if prob >= LABEL_THRESHOLD:
-        _evaluate_and_maybe_switch_base(uid)
+        _create_provisional(uid, dt.date())
+
+    _evaluate_and_maybe_switch_base(uid)
     _update_cycle_on_observation(uid, dt.date(), float(prob))
     try:
         schedule_and_train_models_for_uid(uid)
     except Exception:
         pass
     return entry, load_individual(uid) or udata
+
+
+def _get_ml_optimized_weights(uid: str, udata: Dict[str, Any]) -> Dict[str, float]:
+    """機械学習で最適化された重みを取得"""
+    base_weights = dict(_default_weights())
+    learned_weights = udata.get("learned_weights", {})
+    
+    # データ数が少ない場合は基本重みを使用
+    input_count = len(udata.get("history", []))
+    if input_count < 10:
+        return base_weights
+    
+    # 機械学習で学習した重みと基本重みを組み合わせる
+    alpha = min(0.8, input_count / 50.0)  # データが増えるほど学習重みを重視
+    optimized_weights = {}
+    for key in base_weights:
+        base_val = base_weights[key]
+        learned_val = learned_weights.get(key, base_val)
+        optimized_weights[key] = (1 - alpha) * base_val + alpha * learned_val
+    
+    return optimized_weights
+
+
+def _get_ml_optimized_params(uid: str, udata: Dict[str, Any]) -> Dict[str, float]:
+    """機械学習で最適化されたパラメータを取得"""
+    base_params = dict(_default_params())
+    learned_params = udata.get("learned_params", {})
+    
+    input_count = len(udata.get("history", []))
+    if input_count < 10:
+        return base_params
+    
+    alpha = min(0.7, input_count / 40.0)
+    optimized_params = {}
+    for key in base_params:
+        base_val = base_params[key]
+        learned_val = learned_params.get(key, base_val)
+        optimized_params[key] = (1 - alpha) * base_val + alpha * learned_val
+    
+    return optimized_params
+
+
+def _calculate_cough_impact(cough: int, params: Dict[str, float]) -> float:
+    """咳の影響をより精密に計算"""
+    if cough <= 0:
+        return 1.0
+    
+    # 非線形な咳の影響を考慮
+    cough_max = params["cough_max_multiplier"]
+    cough_min = params["cough_min_multiplier"]
+    
+    # 咳が多いほど影響が大きくなるが、飽和する
+    impact = cough_max - (cough_max - cough_min) * (cough / 4.0) ** 0.8
+    return max(cough_min, min(cough_max, impact))
+
+
+def _calculate_toilet_impact(toilet_times: List[Dict], udata: Dict[str, Any]) -> float:
+    """トイレ回数と所要時間の影響を計算"""
+    if not toilet_times:
+        return 0.0
+    
+    count = len(toilet_times)
+    avg_duration = sum(t.get("duration_min", 0) for t in toilet_times) / count
+    
+    # 個人の平均と比較して異常値を検出
+    history = udata.get("history", [])
+    if history:
+        all_counts = [h.get("toilet", 0) for h in history[-30:]]  # 直近30日
+        all_durations = []
+        for h in history[-30:]:
+            for t in h.get("toilet_times", []):
+                if t.get("duration_min"):
+                    all_durations.append(t["duration_min"])
+        
+        avg_count = sum(all_counts) / len(all_counts) if all_counts else 7.0
+        avg_dur = sum(all_durations) / len(all_durations) if all_durations else 5.0
+        
+        # 平均からの乖離度を計算
+        count_deviation = abs(count - avg_count) / max(1.0, avg_count)
+        dur_deviation = abs(avg_duration - avg_dur) / max(1.0, avg_dur)
+        
+        # 乖離が大きいほどスコアに影響
+        impact = (count_deviation * 0.3 + dur_deviation * 0.2) * 2.0
+        return min(3.0, impact)  # 最大インパクトを制限
+    
+    return 0.0
+
+
+def _calculate_meds_impact(meds: List[Dict], meds_groups: List[str], params: Dict[str, float], udata: Dict[str, Any]) -> float:
+    """薬剤の影響をより精密に計算"""
+    if not meds or len(meds_groups) < 4:
+        return 0.0
+    
+    group1, group2, group3, group4 = meds_groups[:4]
+    taken_cats = set(m["category"] for m in meds if isinstance(m, dict) and m.get("category"))
+    
+    impact = 0.0
+    
+    # 生理特有薬の影響（確率99%に設定）
+    if group1 in taken_cats:
+        target_99 = params["score_shift"] - math.log(1 / params["group1_target_prob"] - 1)
+        impact += max(0, target_99) * 0.9  # 90%の影響度
+    
+    # 日用薬の影響（確率を適切に調整）
+    elif group2 in taken_cats:
+        target_60 = params["score_shift"] - math.log(1 / params["group2_target_prob"] - 1)
+        # 日用薬の影響を過剰にしないよう調整
+        base_impact = max(0, target_60) * 0.4  # 40%の影響度に制限
+        
+        # 個人の感受性を考慮
+        history = udata.get("history", [])
+        if history:
+            # 過去の日用薬使用時の確率変化を分析
+            daily_meds_responses = []
+            for h in history[-20:]:
+                h_meds = h.get("meds", [])
+                if any(m.get("category") == group2 for m in h_meds):
+                    daily_meds_responses.append(h.get("final_prob", 0))
+            
+            if daily_meds_responses:
+                avg_response = sum(daily_meds_responses) / len(daily_meds_responses)
+                # 個人の感受性が高い場合は影響を調整
+                if avg_response > 0.7:  # 過去に過剰反応があった
+                    base_impact *= 0.7  # 影響を低減
+        
+        impact += base_impact
+    
+    # その他の薬剤カテゴリの影響
+    if group3 in taken_cats:
+        impact *= params["group3_multiplier"] * 0.5  # 影響度を調整
+    
+    if group4 in taken_cats:
+        impact += params["group4_add"] * 0.8  # 影響度を調整
+    
+    return impact
+
+
+def _calculate_adaptive_probability(score: float, udata: Dict[str, Any]) -> float:
+    """適応的確率計算 - 機械学習で最適化"""
+    history = udata.get("history", [])
+    input_count = len(history)
+    
+    # 基本シグモイド
+    base_shift = udata.get("learned_shift", SCORE_SHIFT_INIT)
+    base_prob = sigmoid(score - base_shift)
+    
+    # 個人の特性を考慮した調整
+    if input_count >= 10:
+        # 過去の確率分布を分析
+        recent_probs = [h.get("final_prob", 0) for h in history[-30:]]
+        if recent_probs:
+            avg_prob = sum(recent_probs) / len(recent_probs)
+            std_prob = (sum((p - avg_prob) ** 2 for p in recent_probs) / len(recent_probs)) ** 0.5
+            
+            # 個人の確率傾向を考慮
+            if avg_prob > 0.7:  # 高確率傾向
+                base_prob *= 1.1
+            elif avg_prob < 0.3:  # 低確率傾向
+                base_prob *= 0.9
+    
+    # データ数による信頼性調整
+    if input_count < 5:
+        base_prob *= 0.6  # 信頼性低
+    elif input_count < 15:
+        base_prob *= 0.8  # 信頼性中
+    elif input_count >= 30:
+        base_prob *= 1.05  # 信頼性高
+    
+    return min(0.95, max(0.05, base_prob))  # 確率範囲を制限
+
+
+def _create_provisional(uid: str, start_date: date) -> None:
+    ind = load_individual(uid)
+    if ind is None:
+        return
+    
+    end = start_date + timedelta(days=PROVISIONAL_PERIOD_DAYS-1)
+    prov = {
+        "id": f"prov_{start_date.strftime('%Y%m%d')}_{int(datetime.now().timestamp())}",
+        "start_date": start_date.strftime("%Y-%m-%d"),
+        "end_date": end.strftime("%Y-%m-%d"),
+        "created_at": datetime.now().isoformat(),
+        "status": "active",
+        "score": None
+    }
+    ind.setdefault("provisional_periods", []).append(prov)
+    ind["last_saved"] = datetime.now().isoformat()
+    save_individual(uid, ind)
 
 
 def add_entry_only(uid: str, payload: Dict[str, Any]) -> Dict[str, Any]:

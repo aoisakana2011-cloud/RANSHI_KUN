@@ -1,0 +1,61 @@
+{
+  "uid": "test_user_improved",
+  "cycle_days": 28.0,
+  "toilet_avg": 7.0,
+  "toilet_duration_avg": 0.0,
+  "input_count": 1,
+  "last_high_prob_date": "2026-03-10",
+  "base_prob": 0.593,
+  "base_start_date": "2024-01-17",
+  "pending_candidate_start": null,
+  "history": [
+    {
+      "date": "2024-01-17",
+      "time": "2024-01-17 10:00:00",
+      "entry_time": "2024-01-17 10:00",
+      "gym": 1,
+      "absent": 0,
+      "pain": 1,
+      "headache": 1,
+      "tone_pressure": 2,
+      "cough": 0,
+      "toilet_times": [
+        {
+          "time": "08:00",
+          "duration_min": 5
+        }
+      ],
+      "toilet": 1,
+      "raw_score": 8.46,
+      "final_prob": 0.593,
+      "meds": [
+        {
+          "name": "アセトアミノフェン（カロナール）",
+          "category": "日用でも生理でも使う薬",
+          "time": "09:30"
+        }
+      ],
+      "notes": "改善版テスト"
+    }
+  ],
+  "toilet_time_mean": null,
+  "provisional_periods": [],
+  "last_saved": "2026-03-10T13:20:15.530548",
+  "models": {},
+  "weights": {
+    "gym": 3.5,
+    "absent": 1.0,
+    "pain": 1.2,
+    "headache": 1.0,
+    "tone": 0.5
+  },
+  "params": {
+    "cough_max_multiplier": 1.2,
+    "cough_min_multiplier": 0.2,
+    "group1_target_prob": 0.99,
+    "group2_target_prob": 0.6,
+    "group3_multiplier": 0.5,
+    "group4_add": 0.1,
+    "score_shift": 4.0
+  }
+}
