@@ -335,12 +335,19 @@
     height: 100%;
 }
 
-.toilet-section, .meds-section, .misc-section {
+.toilet-section, .meds-section {
     border: 1px solid var(--border-color);
     border-radius: 6px;
     padding: 1rem;
     background: var(--bg-secondary);
     margin: 1rem 0;
+}
+
+.meds-table-body {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
 }
 
 .toilet-controls {
@@ -909,6 +916,17 @@ function drawPredictionChart(dates, percent, centerDate, sigma) {
                         return "rgb(75, 192, 192)";
                     }),
                     borderWidth: 1
+                },
+                {
+                    label: "正規分布 (σ=" + sigmaNum.toFixed(1) + "日)",
+                    data: normalCurve,
+                    type: "line",
+                    borderColor: "#e8a735",
+                    backgroundColor: "transparent",
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: false,
+                    order: 1,
                 },
             ],
         },

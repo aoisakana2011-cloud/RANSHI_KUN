@@ -302,7 +302,19 @@ def monte_carlo_predict(uid: str, payload: Dict[str, Any], simulations: int = 10
     """モンテカルロ法による予測"""
     # 通常予測も実行
     entry, udata = _compute_and_save_entry(uid, payload)
-    pred_res = compute_prediction_distribution(uid, udata)
+    
+    # 通常予測の計算
+    today_str = entry.get("date", "")
+    try:
+        last_high = udata.get("last_high_prob_date", today_str)
+    except Exception:
+        last_high = today_str
+    cycle_days = float(udata.get("cycle_days", 28.0) or 28.0)
+    input_count = int(udata.get("input_count", 0) or 0)
+
+    pred_res = compute_prediction_distribution(
+        last_high, cycle_days, input_count, days=PREDICTION_RANGE_DAYS, reference_date=None
+    )
     
     # モンテカルロシミュレーション
     mc_result = monte_carlo_prediction(uid, payload, simulations)

@@ -5,6 +5,7 @@
     "test_user_improved",
     "test_healthy",
     "test_menstrual",
-    "test_weighted"
+    "test_weighted",
+    "test_monte_carlo"
   ]
 }
