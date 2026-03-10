@@ -16,26 +16,26 @@
     <h3>今日の行動を記録して予測</h3>
     <p class="form-criteria">※ 入力した「日付」の日の行動を記録し、その日の確率を出します。グラフは「今日」から60日分の予測です。</p>
     <div class="input-layout">
-        <div class="left-panel">
+        <div class="single-panel">
             <form id="predict-form" class="predict-form">
                 <div class="form-row">
-                    <label>対象UID</label>
-                    <input type="text" id="predict-uid" required placeholder="個体をクリックで自動入力">
+                    <label>UID <span class="criteria">必須</span></label>
+                    <input type="text" id="predict-uid" placeholder="例: user001" required>
                 </div>
                 <div class="form-row">
-                    <label>記録する日付</label>
+                    <label>日付 <span class="criteria">必須</span></label>
                     <input type="date" id="predict-date" required>
                 </div>
                 <div class="form-row">
-                    <label>体育 <span class="criteria">0:なし 1:軽め 2:普通 3:激しい</span></label>
-                    <input type="number" id="predict-gym" min="0" max="3" value="0" title="0:なし 1:軽め 2:普通 3:激しい">
+                    <label>ジム回数 <span class="criteria">0〜5</span></label>
+                    <input type="number" id="predict-gym" min="0" max="5" value="0">
                 </div>
                 <div class="form-row">
-                    <label>出欠 <span class="criteria">0:通常 1:早退/遅刻 2:欠席</span></label>
-                    <input type="number" id="predict-absent" min="0" max="2" value="0" title="0:通常 1:早退/遅刻 2:欠席">
+                    <label>欠席回数 <span class="criteria">0〜5</span></label>
+                    <input type="number" id="predict-absent" min="0" max="5" value="0">
                 </div>
                 <div class="form-row">
-                    <label>腹痛 <span class="criteria">0〜5（強さ）</span></label>
+                    <label>痛み <span class="criteria">0〜5（強さ）</span></label>
                     <input type="number" id="predict-pain" min="0" max="5" value="0">
                 </div>
                 <div class="form-row">
@@ -55,26 +55,20 @@
                     <button type="button" id="predict-btn">予測</button>
                 </div>
             </form>
-            <div id="predict-result" class="predict-result"></div>
-            <div id="chart-wrap" class="chart-wrap" style="display:none;">
-                <canvas id="prediction-chart"></canvas>
-            </div>
-        </div>
-        
-        <div class="right-panel">
+            
+            <!-- トイレ詳細 -->
             <div class="toilet-section">
-                <div class="toilet-header">
-                    <h4>トイレ詳細</h4>
-                    <div class="toilet-count-input">
-                        <label>トイレ回数</label>
-                        <input type="number" id="predict-toilet-count" min="0" max="10" value="0" onchange="updateToiletTable()">
-                    </div>
+                <h4>トイレ詳細</h4>
+                <div class="toilet-controls">
+                    <button type="button" id="add-toilet-row" onclick="addToiletRow()">+ 行を追加</button>
+                    <button type="button" id="clear-toilet" onclick="clearToiletRows()">クリア</button>
                 </div>
                 <div class="toilet-table-container">
                     <div class="table-header">
                         <span>回数</span>
                         <span>時刻</span>
                         <span>所要時間 (分)</span>
+                        <span>操作</span>
                     </div>
                     <div class="table-body" id="toilet-table-body">
                         <!-- 初期状態では空 -->
@@ -82,9 +76,10 @@
                 </div>
             </div>
             
+            <!-- 薬剤服用 -->
             <div class="meds-section">
                 <h4>薬剤服用</h4>
-                <div class="meds-fixed">
+                <div class="meds-single-column">
                     <div class="med-item">
                         <div class="med-header">一つ目</div>
                         <select class="med-category" id="med1-category" onchange="updateMedOptions('med1')">
@@ -131,11 +126,12 @@
                     </div>
                 </div>
             </div>
+            
+            <div id="predict-result" class="predict-result"></div>
+            <div id="chart-wrap" class="chart-wrap" style="display:none;">
+                <canvas id="prediction-chart"></canvas>
+            </div>
         </div>
-    </form>
-    <div id="predict-result" class="predict-result"></div>
-    <div id="chart-wrap" class="chart-wrap" style="display:none;">
-        <canvas id="prediction-chart"></canvas>
     </div>
 </section>
 
@@ -207,8 +203,15 @@
 
 .input-layout {
     display: flex;
+    flex-direction: column;
     gap: 2rem;
     margin-bottom: 2rem;
+}
+
+.single-panel {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
 }
 
 .left-panel {
@@ -225,51 +228,32 @@
 }
 
 .toilet-section, .meds-section {
-    flex: 1;
     border: 1px solid var(--border-color);
     border-radius: 6px;
     padding: 1rem;
     background: var(--bg-secondary);
-    display: flex;
-    flex-direction: column;
+    margin: 1rem 0;
 }
 
-.toilet-header {
+.toilet-controls {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    gap: 0.5rem;
     margin-bottom: 1rem;
 }
 
-.toilet-header h4 {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1rem;
-    font-weight: 600;
-}
-
-.toilet-count-input {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.25rem;
-}
-
-.toilet-count-input label {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    font-weight: 500;
-}
-
-.toilet-count-input input {
-    width: 80px;
-    padding: 0.25rem;
+.toilet-controls button {
+    padding: 0.5rem 1rem;
     border: 1px solid var(--border-color);
-    border-radius: 3px;
+    border-radius: 4px;
     background: var(--bg-primary);
     color: var(--text-primary);
-    font-size: 0.9rem;
-    text-align: center;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.toilet-controls button:hover {
+    background: var(--accent-color);
+    color: white;
 }
 
 .toilet-section h4, .meds-section h4 {
@@ -292,7 +276,7 @@
 
 .table-header {
     display: grid;
-    grid-template-columns: 60px 1fr 80px;
+    grid-template-columns: 60px 1fr 80px 60px;
     gap: 0.5rem;
     padding: 0.5rem;
     background: var(--bg-secondary);
@@ -308,7 +292,7 @@
 
 .toilet-row {
     display: grid;
-    grid-template-columns: 60px 1fr 80px;
+    grid-template-columns: 60px 1fr 80px 60px;
     gap: 0.5rem;
     padding: 0.5rem;
     border-bottom: 1px solid var(--border-color);
@@ -327,6 +311,12 @@
 
 .toilet-table {
     display: none;
+}
+
+.meds-single-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .meds-fixed {
@@ -395,187 +385,103 @@
 let currentUid = null;
 let medsData = {};
 
-// 薬剤データを読み込む
+// 薬剤データを読み込み
 async function loadMedsData() {
     try {
         const response = await fetch('/data/meds_list.json');
+        if (!response.ok) {
+            throw new Error('Failed to load meds data');
+        }
         medsData = await response.json();
-        console.log('薬剤データ読み込み完了:', medsData);
+        console.log('Meds data loaded:', medsData);
     } catch (error) {
-        console.error('薬剤データ読み込みエラー:', error);
+        console.error('Error loading meds data:', error);
         // フォールバックデータ
         medsData = {
             "生理のときにしかほぼ使わない薬": [
                 "ロキソプロフェンナトリウム（ロキソニン）",
                 "イブプロフェン（ブルフェン）",
-                "ジクロフェナクナトリウム（ボルタレン）",
-                "ナプロキセン（ナイキサン）",
-                "メフェナム酸（ポンタール）",
-                "セレコキシブ（セレコックス）",
-                "トラネキサム酸（トランサミン）",
-                "ブチルスコポラミン臭化物（ブスコパン）",
-                "当帰芍薬散（トウキシャクヤクサン）",
-                "桂枝茯苓丸（ケイシブクリョウガン）",
-                "加味逍遙散（カミショウヨウサン）",
-                "桃核承気湯（トウカクジョウキトウ）",
-                "温経湯（ウンケイトウ）",
-                "芍薬甘草湯（シャクヤクカンゾウトウ）",
-                "エトドラク（ハイペン）",
-                "ジクロフェナクナトリウム坐薬（ボルタレン坐薬）",
-                "インドメタシン（インダシン）",
-                "ロルノキシカム（ロルカム）",
-                "芎帰調血飲（キュウキチョウケツイン）",
-                "女神散（ニョシンサン）"
+                "ジクロフェナクナトリウム（ボルタレン）"
             ],
             "日用でも生理でも使う薬": [
                 "アセトアミノフェン（カロナール / タイレノール）",
-                "ファボワール（低用量ピル）",
-                "マーベロン（低用量ピル）",
-                "トリキュラー（低用量ピル）",
-                "アンジュ（低用量ピル）",
-                "ラベルフィーユ（低用量ピル）",
-                "ジェミーナ（LEP製剤）",
-                "ルナベル（LEP製剤）",
-                "フリウェル（LEP製剤）",
-                "ヤーズ（LEP製剤）",
-                "ヤーズフレックス（LEP製剤）",
-                "ドロエチ（LEP製剤）",
-                "ジエノゲスト（黄体ホルモン剤）",
                 "ファモチジン（ガスター）",
-                "レバミピド（ムコスタ）",
-                "テプレノン（セルベックス）",
-                "エソメプラゾール（ネキシウム）",
-                "ランソプラゾール（タケプロン）",
-                "ラベプラゾール（パリエット）",
-                "酸化マグネシウム",
-                "葛根湯（カッコントウ）",
-                "五苓散（ゴレイサン）",
-                "補中益気湯（ホチュウエッキトウ）",
-                "半夏厚朴湯（ハンゲコウボクトウ）",
-                "エチニルエストラジオール／ノルエチステロン（シンフェーズ）",
-                "ドロスピレノン／エチニルエストラジオール（ヤスミン）",
-                "ミソプロストール（サイトテック）",
-                "レバミピド点眼（ムコスタ点眼）",
-                "大建中湯（ダイケンチュウトウ）",
-                "六君子湯（リックンシトウ）"
+                "エソメプラゾール（ネキシウム）"
             ],
             "花粉症の薬": [
                 "フェキソフェナジン（アレグラ）",
-                "オロパタジン（アレロック）",
                 "セチリジン（ジルテック）",
-                "レボセチリジン（ザイザル）",
-                "ロラタジン（クラリチン）",
-                "デスロラタジン（デザレックス）",
-                "ビラスチン（ビラノア）",
-                "ルパタジン（ルパフィン）",
-                "エピナスチン（アレジオン）",
-                "エボカスチン（エバステル）",
-                "フルチカゾンフランカルボン酸エステル（アラミスト点鼻）",
-                "モメタゾンフランカルボン酸エステル（ナゾネックス点鼻）",
-                "フルチカゾンプロピオン酸エステル（フルナーゼ点鼻）",
-                "オロパタジン（パタノール点眼）",
-                "レボカバスチン（リボスチン点眼）",
-                "ケトチフェン（ザジテン点眼）",
-                "クロモグリク酸ナトリウム（インタール点眼）",
-                "アゼラスチン（アゼプチン）",
-                "ベクロメタゾン（ベコナーゼ点鼻）",
-                "シプロヘプタジン（ペリアクチン）",
-                "オキサトミド（セルテクト）",
-                "トラニラスト（リザベン）",
-                "ケトチフェン内服（ザジテン内服）"
+                "ロラタジン（クラリチン）"
             ],
             "その他の薬": [
                 "バファリンA",
-                "バファリンルナi",
                 "イブA錠",
-                "イブクイック頭痛薬",
-                "ロキソニンS",
-                "ロキソニンSプレミアム",
-                "ノーシン",
-                "セデス・ハイ",
-                "リングルアイビー",
-                "アモキシシリン（サワシリン）",
-                "セフカペンピボキシル（フロモックス）",
-                "レボフロキサシン（クラビット）",
-                "アジスロマイシン（ジスロマック）",
-                "クラリスロマイシン（クラリス）",
-                "セフジニル（セフゾン）",
-                "ゾルピデム（マイスリー）",
-                "エスゾピクロン（ルネスタ）",
-                "スボレキサント（ベルソムラ）",
-                "レンボレキサント（デエビゴ）",
-                "トリアゾラム（ハルシオン）",
-                "ブロチゾラム（レンドルミン）",
-                "エチゾラム（デパス）",
-                "ロラゼパム（ワイパックス）",
-                "アルプラゾラム（ソラナックス）",
-                "クエン酸第一鉄ナトリウム（フェロミア）",
-                "溶性ピロリン酸第二鉄（インクレミン）",
-                "フマル酸第一鉄（フェルム）",
-                "ビタミンB群サプリメント",
-                "ビタミンCサプリメント",
-                "鉄分サプリメント",
-                "葉酸サプリメント",
-                "アセチルサリチル酸（アスピリン）",
-                "サリチルアミド配合薬（ナロンエースなど）",
-                "スクラルファート（アルサルミン）",
-                "ラフチジン（プロテカジン）",
-                "セフポドキシム（バナン）",
-                "ミノサイクリン（ミノマイシン）",
-                "メトロニダゾール（フラジール）",
-                "タンドスピロン（セディール）",
-                "ロフラゼプ酸（メイラックス）",
-                "クアゼパム（ドラール）",
-                "ビタミンDサプリ",
-                "マグネシウムサプリ",
-                "亜鉛サプリ",
-                "胃薬（一般カテゴリ）",
-                "風邪薬（一般カテゴリ）",
-                "便秘薬（一般カテゴリ）"
+                "ビタミンCサプリメント"
             ]
         };
     }
 }
 
-// トイレ表を更新
-function updateToiletTable() {
-    const count = parseInt(document.getElementById("predict-toilet-count").value) || 0;
+// トイレ行を追加
+function addToiletRow() {
     const body = document.getElementById("toilet-table-body");
+    const rowCount = body.children.length + 1;
     
-    // 0回の場合は空にする
-    if (count === 0) {
-        body.innerHTML = "";
-        return;
-    }
+    const row = document.createElement("div");
+    row.className = "toilet-row";
     
+    // 回数
+    const countCell = document.createElement("span");
+    countCell.textContent = rowCount + "回目";
+    row.appendChild(countCell);
+    
+    // 時刻
+    const timeInput = document.createElement("input");
+    timeInput.type = "time";
+    timeInput.value = formatTime(new Date());
+    row.appendChild(timeInput);
+    
+    // 所要時間
+    const durationInput = document.createElement("input");
+    durationInput.type = "number";
+    durationInput.min = "1";
+    durationInput.max = "60";
+    durationInput.value = "3";
+    row.appendChild(durationInput);
+    
+    // 削除ボタン
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.textContent = "削除";
+    deleteBtn.onclick = () => row.remove();
+    deleteBtn.style.padding = "0.25rem";
+    deleteBtn.style.fontSize = "0.7rem";
+    row.appendChild(deleteBtn);
+    
+    body.appendChild(row);
+    updateToiletRowCount();
+}
+
+// トイレ行をすべてクリア
+function clearToiletRows() {
+    const body = document.getElementById("toilet-table-body");
     body.innerHTML = "";
-    
-    const now = new Date();
-    for (let i = 1; i <= count; i++) {
-        const row = document.createElement("div");
-        row.className = "toilet-row";
-        
-        // 回数
-        const countCell = document.createElement("span");
-        countCell.textContent = i + "回目";
-        row.appendChild(countCell);
-        
-        // 時刻
-        const timeInput = document.createElement("input");
-        timeInput.type = "time";
-        timeInput.value = formatTime(new Date(now.getTime() - (count - i) * 30 * 60 * 1000));
-        row.appendChild(timeInput);
-        
-        // 所要時間
-        const durationInput = document.createElement("input");
-        durationInput.type = "number";
-        durationInput.min = "1";
-        durationInput.max = "60";
-        durationInput.value = "3";
-        row.appendChild(durationInput);
-        
-        body.appendChild(row);
-    }
+}
+
+// トイレ行の番号を更新
+function updateToiletRowCount() {
+    const rows = document.querySelectorAll(".toilet-row");
+    rows.forEach((row, index) => {
+        const countCell = row.querySelector("span");
+        if (countCell) {
+            countCell.textContent = (index + 1) + "回目";
+        }
+    });
+}
+
+// トイレ表を更新（古い関数は残すが使用しない）
+function updateToiletTable() {
+    // この関数はもう使用しない
 }
 
 // トイレデータを収集
@@ -818,7 +724,7 @@ document.getElementById("predict-btn").addEventListener("click", async () => {
         headache: parseInt(document.getElementById("predict-headache").value),
         tone: parseInt(document.getElementById("predict-tone").value),
         cough: parseInt(document.getElementById("predict-cough").value),
-        toilet_count: parseInt(document.getElementById("predict-toilet-count").value) || 0,
+        toilet_count: document.querySelectorAll(".toilet-row").length,
         toilet_times: collectToiletData(),
         meds: collectMedsData()
     };
@@ -885,7 +791,10 @@ document.getElementById("register-btn").addEventListener("click", async () => {
         
         // フォームをリセット
         document.getElementById("predict-form").reset();
-        updateToiletTable();
+        clearToiletRows();
+        
+        // 薬剤時刻を現在時刻に設定
+        setCurrentTimeToMeds();
         
     } catch (err) {
         alert(err.message);

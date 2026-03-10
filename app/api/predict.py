@@ -6,7 +6,6 @@ bp = Blueprint("predict", __name__)
 
 
 @bp.route("/predict/<uid>", methods=["POST"])
-@login_required
 def predict_for_uid(uid):
     data = request.get_json() or {}
     try:
@@ -20,7 +19,6 @@ def predict_for_uid(uid):
 
 
 @bp.route("/register/<uid>", methods=["POST"])
-@login_required
 def register_entry(uid):
     """履歴のみ登録（学習用）。予測は返さない。"""
     data = request.get_json() or {}
